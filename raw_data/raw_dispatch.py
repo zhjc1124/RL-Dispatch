@@ -30,4 +30,5 @@ for index, row in dispatchs.iterrows():
         print(index)
 
 dispatchs.drop(columns=['Unnamed: 0', 'sender_longitude', 'sender_latitude', 'receiver_longitude', 'receiver_latitude'])
+
 dispatchs.to_csv('../dataset/dispatchs.csv', sep=',')
