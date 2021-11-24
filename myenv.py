@@ -192,13 +192,13 @@ class Myenv:
         dispatchs = dispatchs.sort_values(by='send_datetime')
         dispatchs = dispatchs.reset_index(drop=True)
         self.dispatchs = dispatchs
-        dispatchs.to_csv('./dataset/dispatchs_sorted.csv', sep=',')
+        # dispatchs.to_csv('./dataset/dispatchs_sorted.csv', sep=',')
 
         subways = pd.read_csv('./dataset/subways.csv', sep=',', index_col=0)
         subways = subways.sort_values(by='swipe_in_time')
         subways = subways.reset_index(drop=True)        
         self.subways = subways
-        subways.to_csv('./dataset/subways_sorted.csv', sep=',')
+        # subways.to_csv('./dataset/subways_sorted.csv', sep=',')
 
 if __name__ == '__main__':
     env = Myenv()
