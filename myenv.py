@@ -20,7 +20,7 @@ class Dispatch:
     def reward(self):
         assert(self.hops[-1]==self.receiver_station)
         reward = -len(self.hops)
-        if self.time_constrain >= 0:
+        if self.time_constrain.seconds >= 0:
             reward += 5
         return reward
 
@@ -44,7 +44,7 @@ class Myenv:
         self.dispatchs_waiting = []
         self.dispatchs_delivering = []
         self.subways_entering = None
-        self.subways_commuting = None
+        self.subways_commuting = pd.DataFrame(None,columns=['card_id','swipe_in_time','swipe_in_station','swipe_out_time','swipe_out_station'])
         self.state = {
             'dispatchs': [],
             'packages': [
@@ -84,11 +84,9 @@ class Myenv:
         self.dispatchs_waiting = waiting
 
         # set the commuting passengers
-        self.subways_commuting = self.subways_entering
-        self.subways_entering = None
-        for index, row in self.subways_commuting.iterrows():
-            self.state['passengers'][1][row['swipe_in_station'], row['swipe_in_station']] += 1
-
+        for index, row in self.subways_entering.iterrows():
+            self.state['passengers'][1][row['swipe_in_station'], row['swipe_out_station']] += 1
+        self.subways_commuting = self.subways_commuting.append(self.subways_entering)
 
         # next episode
         self.time += self.episode
@@ -104,7 +102,7 @@ class Myenv:
         for dispatch in self.dispatchs_delivering:
             if dispatch.time < self.time+self.episode:
                 self.state['packages'][1][dispatch.hops[-2], dispatch.hops[-1]] -= 1
-                if dispatch.hop[-1] == dispatch.receiver_station:
+                if dispatch.hops[-1] == dispatch.receiver_station:
                     reward += dispatch.reward()
                 else:
                     self.dispatchs_waiting.append(dispatch)
@@ -114,10 +112,9 @@ class Myenv:
         self.dispatchs_delivering = delivering
 
         arrived = self.subways_commuting[self.time+self.episode>self.subways_commuting['swipe_out_time']]
-        self.subways_commuting.drop(arrived.index)
+        self.subways_commuting = self.subways_commuting.drop(arrived.index)
         for index, row in arrived.iterrows():
-            self.state['passengers'][1][row['swipe_in_station'], row['swipe_in_station']] -= 1
-
+            self.state['passengers'][1][row['swipe_in_station'], row['swipe_out_station']] -= 1
 
         dispatchs_handling = self.dispatchs_eval[self.time+self.episode>self.dispatchs_eval['send_datetime']]
         self.dispatchs_eval = self.dispatchs_eval.drop(dispatchs_handling.index)
@@ -180,7 +177,6 @@ class Myenv:
         self.subways_eval = self.subways_eval.drop(self.subways_entering.index)
         for index, row in self.subways_entering.iterrows():
             self.state['passengers'][0][row['swipe_in_station']] += 1
-
         return self.state
         
 
@@ -192,20 +188,23 @@ class Myenv:
         dispatchs = dispatchs.sort_values(by='send_datetime')
         dispatchs = dispatchs.reset_index(drop=True)
         self.dispatchs = dispatchs
-        # dispatchs.to_csv('./dataset/dispatchs_sorted.csv', sep=',')
+        dispatchs.to_csv('./dataset/dispatchs_sorted.csv', sep=',')
 
         subways = pd.read_csv('./dataset/subways.csv', sep=',', index_col=0)
+        subways = subways[subways['swipe_in_station']!=subways['swipe_out_station']]
         subways = subways.sort_values(by='swipe_in_time')
         subways = subways.reset_index(drop=True)        
         self.subways = subways
-        # subways.to_csv('./dataset/subways_sorted.csv', sep=',')
+        subways.to_csv('./dataset/subways_sorted.csv', sep=',')
+
 
 if __name__ == '__main__':
     env = Myenv()
     state = env.reset()
-    last_passenger = 0
-    while state['done']:
+    print(state)
+    while not state['done']:
         actions = []
         for i in state['dispatchs']:
             actions.append(i[1])
         state = env.step(actions)
+        print(state)
