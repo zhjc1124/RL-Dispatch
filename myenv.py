@@ -153,6 +153,7 @@ class Myenv:
         subways_eval = self.subways.copy(deep=True)
         subways_eval['swipe_in_time'] = pd.to_datetime(f'2021-11-{day:02d} ' + subways_eval['swipe_in_time'])
         subways_eval['swipe_out_time'] = pd.to_datetime(f'2021-11-{day:02d} ' + subways_eval['swipe_out_time'])
+        subways_eval = subways_eval[subways_eval['swipe_in_time']<subways_eval['swipe_out_time']]
         subways_eval = subways_eval.sort_values(by='swipe_in_time')
         subways_eval = subways_eval.reset_index(drop=True)
         self.subways_eval = subways_eval
