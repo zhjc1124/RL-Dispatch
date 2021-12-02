@@ -179,13 +179,14 @@ class Myenv:
         for index, row in self.subways_entering.iterrows():
             self.state['passengers'][0][row['swipe_in_station']] += 1
         return self.state
-        
 
     def load_dataset(self):
         dispatchs = pd.read_csv('./dataset/dispatchs.csv', sep=',', index_col=0)
         dispatchs = dispatchs[dispatchs['sender_station'] != dispatchs['receiver_station']]
         dispatchs['send_datetime'] = pd.to_datetime(dispatchs['send_datetime'])
         dispatchs['receive_datetime'] = pd.to_datetime(dispatchs['receive_datetime'])
+        dispatchs = dispatchs[dispatchs['send_datetime'] < dispatchs['receive_datetime']]
+        dispatchs = dispatchs[dispatchs['send_datetime'].apply(lambda x: x.day) == dispatchs['receive_datetime'].apply(lambda x: x.day)]
         dispatchs = dispatchs.sort_values(by='send_datetime')
         dispatchs = dispatchs.reset_index(drop=True)
         self.dispatchs = dispatchs
@@ -203,9 +204,9 @@ if __name__ == '__main__':
     env = Myenv()
     state = env.reset()
     print(state)
-    while not state['done']:
-        actions = []
-        for i in state['dispatchs']:
-            actions.append(i[1])
-        state = env.step(actions)
-        print(state)
+    # while not state['done']:
+    #     actions = []
+    #     for i in state['dispatchs']:
+    #         actions.append(i[1])
+    #     state = env.step(actions)
+    #     print(state)
