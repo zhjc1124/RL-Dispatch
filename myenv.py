@@ -30,7 +30,11 @@ class Dispatch:
         self.time = chosed_subway['swipe_out_time']
 
     def output(self):
-        return [self.hops[-1], self.receiver_station, self.time_constrain.seconds]
+        if self.time+self.time_constrain < self.localtime:
+            lefttime = 0
+        else:
+            lefttime = (self.time+self.time_constrain-self.localtime).seconds
+        return [self.hops[-1], self.receiver_station, lefttime]
 
 class Myenv:
     def __init__(self):
@@ -41,26 +45,6 @@ class Myenv:
         self.subways = None                                        # total subways
         self.dispatchs_eval = None                                 # dispatchs per day
         self.subways_eval = None                                   # subways per day
-        self.dispatchs_waiting = []
-        self.dispatchs_delivering = []
-        self.subways_entering = None
-        self.subways_commuting = pd.DataFrame(None,columns=['card_id','swipe_in_time','swipe_in_station','swipe_out_time','swipe_out_station'])
-        self.state = {
-            'dispatchs': [],
-            'packages': [
-                torch.zeros(self.station_num),                     # waiting packages
-                torch.zeros(self.station_num, self.station_num)    # delivering packages
-            ],                                                     
-            'passengers': [
-                torch.zeros(self.station_num),                     # entering passengers
-                torch.zeros(self.station_num, self.station_num)    # commuting passengers
-            ],
-            'done': False,
-            'time': self.time,
-            'reward': 0
-        }
-        self.step_nums = 0
-
         self.load_dataset()
 
     def step(self, actions):
@@ -126,6 +110,7 @@ class Myenv:
         self.state['packages'][0] = torch.zeros(self.station_num)
         dispatchs_output = []
         for dispatch in self.dispatchs_waiting:
+            dispatch.localtime = self.time
             dispatchs_output.append(dispatch.output())
             self.state['packages'][0][dispatch.sender_station] += 1
 
@@ -148,7 +133,28 @@ class Myenv:
         reset the environment.
         return states and time
         '''
+        self.dispatchs_waiting = []
+        self.dispatchs_delivering = []
+        self.subways_entering = None
+        self.subways_commuting = pd.DataFrame(None,columns=['card_id','swipe_in_time','swipe_in_station','swipe_out_time','swipe_out_station'])
+        self.step_nums = 0
+        self.state = {
+            'dispatchs': [],
+            'packages': [
+                torch.zeros(self.station_num),                     # waiting packages
+                torch.zeros(self.station_num, self.station_num)    # delivering packages
+            ],
+            'passengers': [
+                torch.zeros(self.station_num),                     # entering passengers
+                torch.zeros(self.station_num, self.station_num)    # commuting passengers
+            ],
+            'done': False,
+            'time': self.time,
+            'reward': 0
+        }
+
         self.dispatchs_eval = self.dispatchs.copy(deep=True)
+        self.dispatchs_eval = self.dispatchs_eval[self.dispatchs_eval['send_datetime'].apply(lambda x: x.day) == day]
 
         subways_eval = self.subways.copy(deep=True)
         subways_eval['swipe_in_time'] = pd.to_datetime(f'2021-11-{day:02d} ' + subways_eval['swipe_in_time'])
@@ -159,6 +165,7 @@ class Myenv:
         self.subways_eval = subways_eval
 
         self.time = datetime(2021, 11, day, 0, 0, 0)
+        self.step_nums = 0
         self.state['time'] = self.time
 
         dispatchs_handling = self.dispatchs_eval[self.time+self.episode>self.dispatchs_eval['send_datetime']]
@@ -169,6 +176,7 @@ class Myenv:
 
         dispatchs_output = []
         for dispatch in self.dispatchs_waiting:
+            dispatch.localtime = self.time
             dispatchs_output.append(dispatch.output())
             self.state['packages'][0][dispatch.sender_station] += 1
         self.state['dispatchs'] = dispatchs_output
@@ -204,9 +212,20 @@ if __name__ == '__main__':
     env = Myenv()
     state = env.reset()
     print(state)
-    # while not state['done']:
-    #     actions = []
-    #     for i in state['dispatchs']:
-    #         actions.append(i[1])
-    #     state = env.step(actions)
-    #     print(state)
+    while not state['done']:
+        actions = []
+        for i in state['dispatchs']:
+            actions.append(i[1])
+        state = env.step(actions)
+        print(state)
+        input()
+
+    state = env.reset()
+    print(state)
+    while not state['done']:
+        actions = []
+        for i in state['dispatchs']:
+            actions.append(i[1])
+        state = env.step(actions)
+        print(state)
+        input()

@@ -8,7 +8,6 @@
 import copy
 import numpy as np
 import pandas as pd
-import gym
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -192,6 +191,7 @@ def play_episode(env, agent, max_episode_steps=None, mode=None, render=False):
         #     break
     agent.close()
     return episode_reward, elapsed_steps
+
 
 if __name__ == '__main__':
     # 训练
