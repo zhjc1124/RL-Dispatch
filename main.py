@@ -146,11 +146,11 @@ class DQNAgent:
             因为难以说明每个包裹的状态和下一个状态的Q，因此我将未知维度的包裹簇的每个Q做了平均代表当前时隙的Q(state)
             另外删减了target Q和replayer，也即当前状态的Q估计和下一状态的Q估计都采用同一个网络(缺点是数据的相关性可能造成难以收敛)
         '''
-        next_q = next_qs.gather(1, action_next.t()).mean()                                   # 用包裹簇的mean_q作为当前状态时隙的Q
+        next_q = next_qs.gather(1, action_next.t().cuda()).mean()                                   # 用包裹簇的mean_q作为当前状态时隙的Q
         target_q = reward + self.gamma * next_q * (1. -done)                                 # 目标Q
         # state = state.to(device)
         predict_qs = self.CustomNet(state)                                                   # (dispatchs, 118)，
-        predict_q = predict_qs.gather(1, action.t()).mean()                                  # 预测Q
+        predict_q = predict_qs.gather(1, action.t().cuda()).mean()                                  # 预测Q
         loss_tensor = self.loss(target_q, predict_q)                                         # 以目标Q与预测Q的均方差为损失
         self.optimizer1.zero_grad()                                                          # 
         self.optimizer2.zero_grad()
@@ -196,6 +196,7 @@ def play_episode(env, agent, max_episode_steps=None, mode=None, render=False):
 if __name__ == '__main__':
     # 训练
     env = myenv.Myenv()
+    print('load env sucess!!')
     agent = DQNAgent(env)
     episode_rewards = []
     for episode in range(1000):

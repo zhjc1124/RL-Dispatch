@@ -14,26 +14,30 @@ class Dispatch:
         self.send_datetime = data['send_datetime']
         self.receive_datatime = data['receive_datetime']
         self.time = self.send_datetime
-        self.time_constrain = timedelta(hours=TIME_CONSTRAINS[self.sender_station, self.receiver_station])
+        self.time_constrain = TIME_CONSTRAINS[self.sender_station, self.receiver_station]
+        self.wasting_time = 0
         self.hops = [self.sender_station]
 
     def reward(self):
         assert(self.hops[-1]==self.receiver_station)
-        reward = -len(self.hops)
-        if self.time_constrain.seconds >= 0:
+        reward = -len(self.hops)+1
+        if self.wasting_time < self.time_constrain:
             reward += 5
+
         return reward
 
     def deliver(self, chosed_subway):
         self.hops.append(chosed_subway['swipe_out_station'])
-        self.time_constrain -= chosed_subway['swipe_out_time'] - self.time
+        self.wasting_time += (chosed_subway['swipe_out_time'] - self.time).seconds
         self.time = chosed_subway['swipe_out_time']
 
     def output(self):
-        if self.time+self.time_constrain < self.localtime:
+        if self.wasting_time > self.time_constrain:
+            lefttime = 0
+        elif self.time+timedelta(self.time_constrain - self.wasting_time) < self.localtime:
             lefttime = 0
         else:
-            lefttime = (self.time+self.time_constrain-self.localtime).seconds
+            lefttime = (self.time+timedelta(self.time_constrain - self.wasting_time) - self.localtime).seconds
         return [self.hops[-1], self.receiver_station, lefttime]
 
 class Myenv:
@@ -79,11 +83,12 @@ class Myenv:
             return {
                 'done': True,
                 'time': self.time,
-                'reward': 0
+                'reward': -len(self.dispatchs_waiting)
             }
 
         delivering = []
         for dispatch in self.dispatchs_delivering:
+            dispatch.localtime = self.time
             if dispatch.time < self.time+self.episode:
                 self.state['packages'][1][dispatch.hops[-2], dispatch.hops[-1]] -= 1
                 if dispatch.hops[-1] == dispatch.receiver_station:
@@ -211,21 +216,12 @@ class Myenv:
 if __name__ == '__main__':
     env = Myenv()
     state = env.reset()
-    print(state)
+    total_reward = 0
     while not state['done']:
         actions = []
         for i in state['dispatchs']:
             actions.append(i[1])
         state = env.step(actions)
         print(state)
-        input()
-
-    state = env.reset()
-    print(state)
-    while not state['done']:
-        actions = []
-        for i in state['dispatchs']:
-            actions.append(i[1])
-        state = env.step(actions)
-        print(state)
-        input()
+        total_reward += state['reward']
+    print(total_reward)
