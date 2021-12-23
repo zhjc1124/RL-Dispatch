@@ -4,40 +4,45 @@ import pandas as pd
 import numpy as np
 
 TIME_CONSTRAINS = np.load('./raw_data/dis_time.npy')
+
 def strftime(time):
     return time.strftime('%Y-%m-%d %H:%M:%S')
+
 
 class Dispatch:
     def __init__(self, data):
         self.sender_station = data['sender_station']
         self.receiver_station = data['receiver_station']
-        self.send_datetime = data['send_datetime']
-        self.receive_datatime = data['receive_datetime']
-        self.time = self.send_datetime
+        self.send_step = data['send_step']
+        # self.receive_step = data['receive_step']
+        self.arrive_step = 0
         self.time_constrain = TIME_CONSTRAINS[self.sender_station, self.receiver_station]
-        self.wasting_time = 0
+        self.left_step = self.time_constrain * 6
         self.hops = [self.sender_station]
 
     def reward(self):
         assert(self.hops[-1]==self.receiver_station)
         reward = -len(self.hops)+1
-        if self.wasting_time < self.time_constrain:
+        if self.left_step > -1:
             reward += 5
 
         return reward
 
     def deliver(self, chosed_subway):
         self.hops.append(chosed_subway['swipe_out_station'])
-        self.wasting_time += (chosed_subway['swipe_out_time'] - self.time).seconds
-        self.time = chosed_subway['swipe_out_time']
+        self.arrive_step = chosed_subway['swipe_out_step']
+
+    def step(self):
+        if self.left_step < 0:
+            pass
+        else:
+            self.left_step -= 1
 
     def output(self):
-        if self.wasting_time > self.time_constrain:
-            lefttime = 0
-        elif self.time+timedelta(self.time_constrain - self.wasting_time) < self.localtime:
-            lefttime = 0
+        if self.left_step < 0:
+            lefttime = -1
         else:
-            lefttime = (self.time+timedelta(self.time_constrain - self.wasting_time) - self.localtime).seconds
+            lefttime = self.left_step * 10
         return [self.hops[-1], self.receiver_station, lefttime]
 
 class Myenv:
@@ -50,6 +55,9 @@ class Myenv:
         self.dispatchs_eval = None                                 # dispatchs per day
         self.subways_eval = None                                   # subways per day
         self.load_dataset()
+
+    def time2step(self, x):
+        return (x-self.time).seconds // 600
 
     def step(self, actions):
         reward = 0
@@ -79,6 +87,7 @@ class Myenv:
         # next episode
         self.time += self.episode
         self.step_nums += 1
+
         if self.step_nums == 144:
             return {
                 'done': True,
@@ -86,10 +95,14 @@ class Myenv:
                 'reward': -len(self.dispatchs_waiting)
             }
 
+        for dispatch in self.dispatchs_delivering:
+            dispatch.step()
+        for dispatch in self.dispatchs_waiting:
+            dispatch.step()
+
         delivering = []
         for dispatch in self.dispatchs_delivering:
-            dispatch.localtime = self.time
-            if dispatch.time < self.time+self.episode:
+            if dispatch.arrive_step == self.step_nums:
                 self.state['packages'][1][dispatch.hops[-2], dispatch.hops[-1]] -= 1
                 if dispatch.hops[-1] == dispatch.receiver_station:
                     reward += dispatch.reward()
@@ -100,14 +113,12 @@ class Myenv:
         
         self.dispatchs_delivering = delivering
 
-        arrived = self.subways_commuting[self.time+self.episode>self.subways_commuting['swipe_out_time']]
+        arrived = self.subways_commuting[self.subways_commuting['swipe_out_step'] == self.step_nums]
         self.subways_commuting = self.subways_commuting.drop(arrived.index)
         for index, row in arrived.iterrows():
             self.state['passengers'][1][row['swipe_in_station'], row['swipe_out_station']] -= 1
 
-        dispatchs_handling = self.dispatchs_eval[self.time+self.episode>self.dispatchs_eval['send_datetime']]
-        self.dispatchs_eval = self.dispatchs_eval.drop(dispatchs_handling.index)
-
+        dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_step']==self.step_nums]
         for index, row in dispatchs_handling.iterrows():
             dispatch = Dispatch(row)
             self.dispatchs_waiting.append(dispatch)
@@ -115,16 +126,13 @@ class Myenv:
         self.state['packages'][0] = torch.zeros(self.station_num)
         dispatchs_output = []
         for dispatch in self.dispatchs_waiting:
-            dispatch.localtime = self.time
             dispatchs_output.append(dispatch.output())
             self.state['packages'][0][dispatch.sender_station] += 1
 
         self.state['dispatchs'] = dispatchs_output
 
-
         self.state['passengers'][0] = torch.zeros(self.station_num)
-        self.subways_entering = self.subways_eval[self.time+self.episode>self.subways_eval['swipe_in_time']]
-        self.subways_eval = self.subways_eval.drop(self.subways_entering.index)
+        self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] == self.step_nums]
         for index, row in self.subways_entering.iterrows():
             self.state['passengers'][0][row['swipe_in_station']] += 1
 
@@ -158,8 +166,11 @@ class Myenv:
             'reward': 0
         }
 
+        self.time = datetime(2021, 11, day, 0, 0, 0)
+
         self.dispatchs_eval = self.dispatchs.copy(deep=True)
         self.dispatchs_eval = self.dispatchs_eval[self.dispatchs_eval['send_datetime'].apply(lambda x: x.day) == day]
+        self.dispatchs_eval['send_step'] = self.dispatchs_eval['send_datetime'].apply(self.time2step)
 
         subways_eval = self.subways.copy(deep=True)
         subways_eval['swipe_in_time'] = pd.to_datetime(f'2021-11-{day:02d} ' + subways_eval['swipe_in_time'])
@@ -167,28 +178,26 @@ class Myenv:
         subways_eval = subways_eval[subways_eval['swipe_in_time']<subways_eval['swipe_out_time']]
         subways_eval = subways_eval.sort_values(by='swipe_in_time')
         subways_eval = subways_eval.reset_index(drop=True)
+        subways_eval['swipe_in_step'] = subways_eval['swipe_in_time'].apply(self.time2step)
+        subways_eval['swipe_out_step'] = subways_eval['swipe_out_time'].apply(self.time2step)
         self.subways_eval = subways_eval
 
-        self.time = datetime(2021, 11, day, 0, 0, 0)
         self.step_nums = 0
         self.state['time'] = self.time
 
-        dispatchs_handling = self.dispatchs_eval[self.time+self.episode>self.dispatchs_eval['send_datetime']]
-        self.dispatchs_eval = self.dispatchs_eval.drop(dispatchs_handling.index)
+        dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_datetime'] == self.step_nums]
         for index, row in dispatchs_handling.iterrows():
             dispatch = Dispatch(row)
             self.dispatchs_waiting.append(dispatch)
 
         dispatchs_output = []
         for dispatch in self.dispatchs_waiting:
-            dispatch.localtime = self.time
+            dispatch.send_step = self.step_nums
             dispatchs_output.append(dispatch.output())
             self.state['packages'][0][dispatch.sender_station] += 1
         self.state['dispatchs'] = dispatchs_output
 
-
-        self.subways_entering = self.subways_eval[self.time+self.episode>self.subways_eval['swipe_in_time']]
-        self.subways_eval = self.subways_eval.drop(self.subways_entering.index)
+        self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] == self.step_nums]
         for index, row in self.subways_entering.iterrows():
             self.state['passengers'][0][row['swipe_in_station']] += 1
         return self.state
@@ -202,6 +211,7 @@ class Myenv:
         dispatchs = dispatchs[dispatchs['send_datetime'].apply(lambda x: x.day) == dispatchs['receive_datetime'].apply(lambda x: x.day)]
         dispatchs = dispatchs.sort_values(by='send_datetime')
         dispatchs = dispatchs.reset_index(drop=True)
+
         self.dispatchs = dispatchs
         dispatchs.to_csv('./dataset/dispatchs_sorted.csv', sep=',')
 
@@ -218,6 +228,24 @@ if __name__ == '__main__':
     state = env.reset()
     total_reward = 0
     while not state['done']:
+        p_info1 = []
+        for i in range(118):
+            if state['packages'][0][i] != 0:
+                p_info1.append((i, state['packages'][0][i]))
+        p_info2 = []
+        for i in range(118):
+            for j in range(118):
+                if state['packages'][1][i, j] != 0:
+                    p_info2.append((i, j, state['packages'][1][i, j]))
+        p_info3 = []
+        for i in range(118):
+            if state['passengers'][0][i] != 0:
+                p_info3.append((i, state['passengers'][0][i]))
+        p_info4 = []
+        for i in range(118):
+            for j in range(118):
+                if state['passengers'][1][i, j] != 0:
+                    p_info4.append((i, j, state['passengers'][1][i, j]))
         actions = []
         for i in state['dispatchs']:
             actions.append(i[1])
