@@ -43,7 +43,7 @@ class Dispatch:
             lefttime = -1
         else:
             lefttime = self.left_step * 10
-        return torch.tensor([self.hops[-1], self.receiver_station, lefttime], dtype=torch.float)
+        return torch.tensor([self.hops[-1], self.receiver_station, lefttime], dtype=torch.float).to(DEVICE)
 
 class Myenv:
     def __init__(self):
@@ -141,7 +141,7 @@ class Myenv:
         info[0, 1:] = self.state['packages'][1]
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
-        return (self.state['dispatchs'].to(DEVICE), info.to(DEVICE)), self.state['reward'], self.state['done'], self.state['time']
+        return (self.state['dispatchs'], info.to(DEVICE)), self.state['reward'], self.state['done'], self.state['time']
     
     def reset(self, day=1):
         '''
@@ -207,7 +207,7 @@ class Myenv:
         info[0, 1:] = self.state['packages'][1]
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
-        return (torch.tensor([]).to(DEVICE), info.to(DEVICE))
+        return ([], info.to(DEVICE))
 
     def load_dataset(self):
         dispatchs = pd.read_csv('./dataset/dispatchs.csv', sep=',', index_col=0)
