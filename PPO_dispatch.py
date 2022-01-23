@@ -26,6 +26,7 @@ num_state = 10000
 num_action = 118
 torch.manual_seed(seed)
 Transition = namedtuple('Transition', ['state', 'actions',  'a_log_probs', 'reward', 'next_state'])
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Actor(nn.Module):
     def __init__(self):
@@ -96,8 +97,8 @@ class PPO():
 
     def __init__(self):
         super(PPO, self).__init__()
-        self.actor_net = Actor()
-        self.critic_net = Critic()
+        self.actor_net = Actor().to(DEVICE)
+        self.critic_net = Critic().to(DEVICE)
         self.buffer = []
         self.counter = 0
         self.training_step = 0

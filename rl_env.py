@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 TIME_CONSTRAINS = np.load('./raw_data/dis_time.npy')
-
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def strftime(time):
     return time.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -141,7 +141,7 @@ class Myenv:
         info[0, 1:] = self.state['packages'][1]
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
-        return (self.state['dispatchs'], info), self.state['reward'], self.state['done'], self.state['time']
+        return (self.state['dispatchs'].to(DEVICE), info.to(DEVICE)), self.state['reward'], self.state['done'], self.state['time']
     
     def reset(self, day=1):
         '''
@@ -207,7 +207,7 @@ class Myenv:
         info[0, 1:] = self.state['packages'][1]
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
-        return (self.state['dispatchs'], info)
+        return (self.state['dispatchs'].to(DEVICE), info.to(DEVICE))
 
     def load_dataset(self):
         dispatchs = pd.read_csv('./dataset/dispatchs.csv', sep=',', index_col=0)
