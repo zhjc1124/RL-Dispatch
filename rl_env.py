@@ -132,8 +132,8 @@ class Myenv:
             times.append(lefttime)
             self.state['packages'][0][dispatch.sender_station] += 1
         if dispatchs_output:
-            dispatchs_output = torch.concat(dispatchs_output, 0).to(DEVICE)
-            times = torch.tensor(times, dtype=torch.float).view(-1, 1).to(DEVICE)
+            dispatchs_output = torch.concat(dispatchs_output, 0)
+            times = torch.tensor(times, dtype=torch.float).view(-1, 1)
 
         self.state['passengers'][0] = torch.zeros(self.station_num)
         self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] == self.step_nums]
@@ -149,7 +149,7 @@ class Myenv:
         info[0, 1:] = self.state['packages'][1]
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
-        return (dispatchs_output, times, info.to(DEVICE)), self.state['reward'], self.state['done'], self.state['time']
+        return (dispatchs_output, times, info), self.state['reward'], self.state['done'], self.state['time']
     
     def reset(self, day=1):
         '''
@@ -208,8 +208,8 @@ class Myenv:
             times.append(lefttime)
             self.state['packages'][0][dispatch.sender_station] += 1
         if dispatchs_output:
-            dispatchs_output = torch.concat(dispatchs_output, 0).to(DEVICE)
-            times = torch.tensor(times, dtype=torch.float).view(-1, 1).to(DEVICE)
+            dispatchs_output = torch.concat(dispatchs_output, 0)
+            times = torch.tensor(times, dtype=torch.float).view(-1, 1)
 
         self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] == self.step_nums]
         for index, row in self.subways_entering.iterrows():
@@ -219,7 +219,7 @@ class Myenv:
         info[0, 1:] = self.state['packages'][1]
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
-        return (dispatchs_output, times, info.to(DEVICE))
+        return (dispatchs_output, times, info)
 
     def load_dataset(self):
         dispatchs = pd.read_csv('./dataset/dispatchs.csv', sep=',', index_col=0)

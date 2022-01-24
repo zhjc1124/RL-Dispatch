@@ -40,7 +40,7 @@ class Actor(nn.Module):
         self.action_head = nn.Linear(300, 118)
 
     def forward(self, state):
-        dispatchs, lefttime, info = state
+        dispatchs, lefttime, info = state[0].to(DEVICE), state[1].to(DEVICE), state[2].to(DEVICE)
         in_size = dispatchs.shape[0]
         dispatchs = dispatchs.unsqueeze(2)
         info = info.repeat(in_size, 1, 1, 1)
@@ -75,7 +75,7 @@ class Critic(nn.Module):
         self.value_head = nn.Linear(300, 1)
 
     def forward(self, state):
-        dispatchs, lefttime, info = state
+        dispatchs, lefttime, info = state[0].to(DEVICE), state[1].to(DEVICE), state[2].to(DEVICE)
         in_size = dispatchs.shape[0]
         dispatchs = dispatchs.unsqueeze(2)
         info = info.repeat(in_size, 1, 1, 1)
