@@ -112,9 +112,8 @@ class PPO():
 
     def select_action(self, state):
         dispatchs = state[0]
-        info = state[1]
-        actions = []
-        action_probs = []
+        lefttime = state[1]
+        info = state[2]
         with torch.no_grad():
             for d in dispatchs:
                 source = F.one_hot(d[0].long(), 118)
@@ -145,13 +144,13 @@ class PPO():
 
 
     def update(self, i_ep):
-        state = torch.tensor([t.state for t in self.buffer], dtype=torch.float)
-        actions = torch.tensor([t.actions for t in self.buffer], dtype=torch.long).view(-1, 1)
+        state = [t.state for t in self.buffer]
+        actions = [t.actions for t in self.buffer]
         reward = [t.reward for t in self.buffer]
         # update: don't need next_state
         #reward = torch.tensor([t.reward for t in self.buffer], dtype=torch.float).view(-1, 1)
         #next_state = torch.tensor([t.next_state for t in self.buffer], dtype=torch.float)
-        old_action_log_probs = torch.tensor([t.a_log_probs for t in self.buffer], dtype=torch.float).view(-1, 1)
+        old_action_log_probs = [t.a_log_probs for t in self.buffer]
 
         R = 0
         Gt = []
@@ -159,7 +158,7 @@ class PPO():
             R = r + gamma * R
             Gt.insert(0, R)
         Gt = torch.tensor(Gt, dtype=torch.float)
-        #print("The agent is updateing....")
+        # print("The agent is updateing....")
         for i in range(self.ppo_update_time):
             for index in BatchSampler(SubsetRandomSampler(range(len(self.buffer))), self.batch_size, False):
                 if self.training_step % 1000 ==0:
@@ -167,34 +166,28 @@ class PPO():
                 #with torch.no_grad():
                 Gt_index = Gt[index].view(-1, 1)
                 V = 0
-                state_index = state[index]
-
-                dispatchs = state[0]
-                info = state[1]
-                for d in dispatchs:
-                    source = F.one_hot(d[0].long(), 118)
-                    target = F.one_hot(d[1].long(), 118)
-                    lefttime = d[2]
-                    station_info = torch.cat((source.unsqueeze(0), target.unsqueeze(0)), 0)
-                    x0 = torch.cat((station_info.unsqueeze(1), info), 1)
-                    V = self.critic_net(x0, lefttime)
+                ratio = []
+                for ind_ in index:
+                    state_index = state[ind_]
+                    action = actions[ind_]
+                    dispatchs = state_index[0]
+                    info = state_index[1]
+                    action_prob = []
+                    for d in dispatchs:
+                        source = F.one_hot(d[0].long(), 118)
+                        target = F.one_hot(d[1].long(), 118)
+                        lefttime = d[2]
+                        station_info = torch.cat((source.unsqueeze(0), target.unsqueeze(0)), 0)
+                        x0 = torch.cat((station_info.unsqueeze(1), info), 1)
+                        V += self.critic_net(x0, lefttime)
+                        action_prob.append(self.actor_net(x0, lefttime)[action])
+                    old_action_log_prob = old_action_log_probs[ind_]
+                    ratio.append(torch.mean(torch.tensor(action_prob)/torch.tensor(old_action_log_prob)))
 
                 delta = Gt_index - V
                 advantage = delta.detach()
                 # epoch iteration, PPO core!!!
 
-                i=0
-                action_prob = []
-                for d in dispatchs:
-                    source = F.one_hot(d[0].long(), 118)
-                    target = F.one_hot(d[1].long(), 118)
-                    lefttime = d[2]
-                    station_info = torch.cat((source.unsqueeze(0), target.unsqueeze(0)), 0)
-                    x0 = torch.cat((station_info.unsqueeze(1), info), 1)
-                    action_prob.append(self.actor_net(x0, lefttime).gather(1, actions[index][i]))
-                    i += 1 
-
-                ratio = torch.mean(action_prob/old_action_log_prob[index])
                 surr1 = ratio * advantage
                 surr2 = torch.clamp(ratio, 1 - self.clip_param, 1 + self.clip_param) * advantage
 
@@ -233,7 +226,8 @@ def main():
             agent.store_transition(trans)
             state = next_state
 
-            if done:
+            if len(agent.buffer) >= agent.batch_size:
+                agent.update(i_epoch)
                 if len(agent.buffer) >= agent.batch_size:agent.update(i_epoch)
                 agent.writer.add_scalar('liveTime/livestep', t, global_step=i_epoch)
                 break

@@ -2,6 +2,7 @@ import torch
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
+import torch.nn.functional as F
 
 TIME_CONSTRAINS = np.load('./raw_data/dis_time.npy')
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -43,7 +44,8 @@ class Dispatch:
             lefttime = -1
         else:
             lefttime = self.left_step * 10
-        return torch.tensor([self.hops[-1], self.receiver_station, lefttime], dtype=torch.float).to(DEVICE)
+
+        return [self.hops[-1], self.receiver_station, lefttime]
 
 class Myenv:
     def __init__(self):
@@ -82,8 +84,9 @@ class Myenv:
         # set the commuting passengers
         for index, row in self.subways_entering.iterrows():
             self.state['passengers'][1][row['swipe_in_station'], row['swipe_out_station']] += 1
-        self.subways_commuting = self.subways_commuting.append(self.subways_entering)
 
+        # self.subways_commuting = self.subways_commuting.append(self.subways_entering)
+        self.subways_commuting = pd.concat([self.subways_commuting, self.subways_entering])
         # next episode
         self.time += self.episode
         self.step_nums += 1
@@ -120,12 +123,17 @@ class Myenv:
             self.dispatchs_waiting.append(dispatch)
 
         self.state['packages'][0] = torch.zeros(self.station_num)
-        dispatchs_output = []
-        for dispatch in self.dispatchs_waiting:
-            dispatchs_output.append(dispatch.output())
-            self.state['packages'][0][dispatch.sender_station] += 1
 
-        self.state['dispatchs'] = dispatchs_output
+        dispatchs_output = []
+        times = []
+        for dispatch in self.dispatchs_waiting:
+            source, target, lefttime = dispatch.output()
+            dispatchs_output.append(torch.concat((F.one_hot(torch.tensor(source).long(), 118).unsqueeze(0), F.one_hot(torch.tensor(target).long(), 118).unsqueeze(0)), 0).unsqueeze(0))
+            times.append(lefttime)
+            self.state['packages'][0][dispatch.sender_station] += 1
+        if dispatchs_output:
+            dispatchs_output = torch.concat(dispatchs_output, 0).to(DEVICE)
+            times = torch.tensor(times).view(-1, 1).to(DEVICE)
 
         self.state['passengers'][0] = torch.zeros(self.station_num)
         self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] == self.step_nums]
@@ -141,7 +149,7 @@ class Myenv:
         info[0, 1:] = self.state['packages'][1]
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
-        return (self.state['dispatchs'], info.to(DEVICE)), self.state['reward'], self.state['done'], self.state['time']
+        return (dispatchs_output, times, info.to(DEVICE)), self.state['reward'], self.state['done'], self.state['time']
     
     def reset(self, day=1):
         '''
@@ -193,11 +201,15 @@ class Myenv:
             self.dispatchs_waiting.append(dispatch)
 
         dispatchs_output = []
+        times = []
         for dispatch in self.dispatchs_waiting:
-            dispatch.send_step = self.step_nums
-            dispatchs_output.append(dispatch.output())
+            source, target, lefttime = dispatch.output()
+            dispatchs_output.append(torch.concat((F.one_hot(torch.tensor(source).long(), 118).unsqueeze(0), F.one_hot(torch.tensor(target).long(), 118).unsqueeze(0)), 0).unsqueeze(0))
+            times.append(lefttime)
             self.state['packages'][0][dispatch.sender_station] += 1
-        self.state['dispatchs'] = dispatchs_output
+        if dispatchs_output:
+            dispatchs_output = torch.concat(dispatchs_output, 0).to(DEVICE)
+            times = torch.tensor(times).view(-1, 1).to(DEVICE)
 
         self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] == self.step_nums]
         for index, row in self.subways_entering.iterrows():
@@ -207,7 +219,7 @@ class Myenv:
         info[0, 1:] = self.state['packages'][1]
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
-        return ([], info.to(DEVICE))
+        return (dispatchs_output, times, info.to(DEVICE))
 
     def load_dataset(self):
         dispatchs = pd.read_csv('./dataset/dispatchs.csv', sep=',', index_col=0)
@@ -235,13 +247,13 @@ if __name__ == '__main__':
     state = env.reset()
     total_reward = 0
     while True:
-        actions = []
-        for i in state[0]:
-            actions.append(i[1])
+        dispatchs, lefttime, info = state
+        if len(dispatchs) > 0:
+            actions = torch.argmax(dispatchs[:, 1, :], dim=1)
+        else:
+            actions = torch.tensor([])
         state, reward, done, _ = env.step(actions)
         total_reward += reward
-        print(state)
-        input()
         if done:
             break
     print(total_reward)
