@@ -133,7 +133,7 @@ class Myenv:
             self.state['packages'][0][dispatch.sender_station] += 1
         if dispatchs_output:
             dispatchs_output = torch.concat(dispatchs_output, 0).to(DEVICE)
-            times = torch.tensor(times).view(-1, 1).to(DEVICE)
+            times = torch.tensor(times, dtype=torch.float).view(-1, 1).to(DEVICE)
 
         self.state['passengers'][0] = torch.zeros(self.station_num)
         self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] == self.step_nums]
@@ -209,7 +209,7 @@ class Myenv:
             self.state['packages'][0][dispatch.sender_station] += 1
         if dispatchs_output:
             dispatchs_output = torch.concat(dispatchs_output, 0).to(DEVICE)
-            times = torch.tensor(times).view(-1, 1).to(DEVICE)
+            times = torch.tensor(times, dtype=torch.float).view(-1, 1).to(DEVICE)
 
         self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] == self.step_nums]
         for index, row in self.subways_entering.iterrows():

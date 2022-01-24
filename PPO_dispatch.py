@@ -28,6 +28,7 @@ torch.manual_seed(seed)
 Transition = namedtuple('Transition', ['state', 'actions',  'a_log_probs', 'reward', 'next_state'])
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
 class Actor(nn.Module):
     def __init__(self):
         super(Actor, self).__init__()
@@ -38,8 +39,12 @@ class Actor(nn.Module):
         self.fc2 = nn.Linear(800+1, 300)
         self.action_head = nn.Linear(300, 118)
 
-    def forward(self, x0, lefttime):
-        x0 = x0.unsqueeze(0)
+    def forward(self, state):
+        dispatchs, lefttime, info = state
+        in_size = dispatchs.shape[0]
+        dispatchs = dispatchs.unsqueeze(2)
+        info = info.repeat(in_size, 1, 1, 1)
+        x0 = torch.concat((dispatchs, info), 2)
         x0 = self.conv1(x0)
         x0 = F.relu(x0)
         x0 = F.max_pool2d(x0, 2, 2)
@@ -48,14 +53,14 @@ class Actor(nn.Module):
         x0 = F.max_pool2d(x0, 2, 2)
         x0 = self.conv3(x0) 
         x0 = F.relu(x0)
-        x0 = x0.view(1, -1)
+        x0 = x0.view(in_size, -1)
         x0 = self.fc1(x0)
         x0 = F.relu(x0)
-        x = torch.cat((x0, lefttime.view(1,-1)), 1)
+        x = torch.cat((x0, lefttime.view(in_size,-1)), 1)
         x = self.fc2(x)
         x = F.relu(x)
-        action_prob = F.softmax(self.action_head(x), dim=1)
-        return action_prob
+        action_probs = F.softmax(self.action_head(x), dim=1)
+        return action_probs
 
 
 
@@ -69,24 +74,29 @@ class Critic(nn.Module):
         self.fc2 = nn.Linear(800+1, 300)
         self.value_head = nn.Linear(300, 1)
 
-    def forward(self, x0, lefttime):
-        x0 = x0.unsqueeze(0)
+    def forward(self, state):
+        dispatchs, lefttime, info = state
+        in_size = dispatchs.shape[0]
+        dispatchs = dispatchs.unsqueeze(2)
+        info = info.repeat(in_size, 1, 1, 1)
+        x0 = torch.concat((dispatchs, info), 2)
         x0 = self.conv1(x0)
         x0 = F.relu(x0)
         x0 = F.max_pool2d(x0, 2, 2)
         x0 = self.conv2(x0)
         x0 = F.relu(x0)
         x0 = F.max_pool2d(x0, 2, 2)
-        x0 = self.conv3(x0) 
+        x0 = self.conv3(x0)
         x0 = F.relu(x0)
-        x0 = x0.view(1, -1)
+        x0 = x0.view(in_size, -1)
         x0 = self.fc1(x0)
         x0 = F.relu(x0)
-        x = torch.cat((x0, lefttime.view(1,-1)), 1)
+        x = torch.cat((x0, lefttime.view(in_size,-1)), 1)
         x = self.fc2(x)
         x = F.relu(x)
-        value = self.value_head(x)
+        value = self.value_head(x).sum()
         return value
+
 
 class PPO():
     clip_param = 0.2
@@ -111,25 +121,13 @@ class PPO():
             os.makedirs('../param/img')
 
     def select_action(self, state):
-        dispatchs = state[0]
-        lefttime = state[1]
-        info = state[2]
         with torch.no_grad():
-            for d in dispatchs:
-                source = F.one_hot(d[0].long(), 118)
-                target = F.one_hot(d[1].long(), 118)
-                lefttime = d[2]
-                station_info = torch.cat((source.unsqueeze(0), target.unsqueeze(0)), 0)
-                x0 = torch.cat((station_info.unsqueeze(1), info), 1)
-                action_prob = self.actor_net(x0, lefttime)
-                c = Categorical(action_prob)
-                action = c.sample()
-                actions.append(action.item())
-                action_probs.append(action_prob[:,action.item()].item())
-        return actions, action_probs
+            action_probs = self.actor_net(state)
+            c = Categorical(action_probs)
+            actions = c.sample().view(-1, 1)
+        return actions, action_probs.gather(1, actions)
 
     def get_value(self, state):
-        state = torch.from_numpy(state)
         with torch.no_grad():
             value = self.critic_net(state)
         return value.item()
@@ -165,24 +163,15 @@ class PPO():
                     print('I_ep {} ，train {} times'.format(i_ep,self.training_step))
                 #with torch.no_grad():
                 Gt_index = Gt[index].view(-1, 1)
-                V = 0
-                ratio = []
-                for ind_ in index:
+                V = torch.zeros(len(index), 1)
+                ratio = torch.zeros(len(index), 1)
+                for n, ind_ in enumerate(index):
                     state_index = state[ind_]
-                    action = actions[ind_]
-                    dispatchs = state_index[0]
-                    info = state_index[1]
-                    action_prob = []
-                    for d in dispatchs:
-                        source = F.one_hot(d[0].long(), 118)
-                        target = F.one_hot(d[1].long(), 118)
-                        lefttime = d[2]
-                        station_info = torch.cat((source.unsqueeze(0), target.unsqueeze(0)), 0)
-                        x0 = torch.cat((station_info.unsqueeze(1), info), 1)
-                        V += self.critic_net(x0, lefttime)
-                        action_prob.append(self.actor_net(x0, lefttime)[action])
-                    old_action_log_prob = old_action_log_probs[ind_]
-                    ratio.append(torch.mean(torch.tensor(action_prob)/torch.tensor(old_action_log_prob)))
+                    actions_index = actions[ind_]
+                    old_action_log_probs_index = old_action_log_probs[ind_]
+                    V[n] = self.critic_net(state_index)
+                    action_probs = self.actor_net(state_index).gather(1, actions_index)
+                    ratio[n] = (action_probs/old_action_log_probs_index).mean()
 
                 delta = Gt_index - V
                 advantage = delta.detach()
@@ -207,7 +196,6 @@ class PPO():
                 nn.utils.clip_grad_norm_(self.critic_net.parameters(), self.max_grad_norm)
                 self.critic_net_optimizer.step()
                 self.training_step += 1
-
         del self.buffer[:] # clear experience
 
     
@@ -226,9 +214,8 @@ def main():
             agent.store_transition(trans)
             state = next_state
 
-            if len(agent.buffer) >= agent.batch_size:
-                agent.update(i_epoch)
-                if len(agent.buffer) >= agent.batch_size:agent.update(i_epoch)
+            if done:
+                if len(agent.buffer) >= agent.batch_size: agent.update(i_epoch)
                 agent.writer.add_scalar('liveTime/livestep', t, global_step=i_epoch)
                 break
 
