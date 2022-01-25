@@ -29,39 +29,117 @@ Transition = namedtuple('Transition', ['state', 'actions',  'a_log_probs', 'rewa
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # DEVICE = "cpu"
 
+# class Actor(nn.Module):
+#     def __init__(self):
+#         super(Actor, self).__init__()
+#         self.conv1 = nn.Conv2d(2, 10, 3)
+#         self.conv2 = nn.Conv2d(10, 20, 3)
+#         self.conv3 = nn.Conv2d(20, 10, 3)
+#         self.fc1 = nn.Linear(10*26*26, 800)
+#         self.fc2 = nn.Linear(800+1, 300)
+#         self.action_head = nn.Linear(300, 118)
+#
+#     def forward(self, state):
+#         dispatchs, lefttime, info = state[0], state[1], state[2]
+#         in_size = dispatchs.shape[0]
+#         dispatchs = dispatchs.unsqueeze(2)
+#         info = info.repeat(in_size, 1, 1, 1)
+#         x0 = torch.concat((dispatchs, info), 2)
+#         x0 = self.conv1(x0)
+#         x0 = F.relu(x0)
+#         x0 = F.max_pool2d(x0, 2, 2)
+#         x0 = self.conv2(x0)
+#         x0 = F.relu(x0)
+#         x0 = F.max_pool2d(x0, 2, 2)
+#         x0 = self.conv3(x0)
+#         x0 = F.relu(x0)
+#         x0 = x0.view(in_size, -1)
+#         x0 = self.fc1(x0)
+#         x0 = F.relu(x0)
+#         x = torch.cat((x0, lefttime.view(in_size,-1)), 1)
+#         x = self.fc2(x)
+#         x = F.relu(x)
+#         action_probs = F.softmax(self.action_head(x), dim=1)
+#         return action_probs
+#
+#
+#
+# class Critic(nn.Module):
+#     def __init__(self):
+#         super(Critic, self).__init__()
+#         self.conv1 = nn.Conv2d(2, 10, 3)
+#         self.conv2 = nn.Conv2d(10, 20, 3)
+#         self.conv3 = nn.Conv2d(20, 10, 3)
+#         self.fc1 = nn.Linear(10*26*26, 800)
+#         self.fc2 = nn.Linear(800+1, 300)
+#         self.value_head = nn.Linear(300, 1)
+#
+#     def forward(self, state):
+#         dispatchs, lefttime, info = state[0], state[1], state[2]
+#         in_size = dispatchs.shape[0]
+#         dispatchs = dispatchs.unsqueeze(2)
+#         info = info.repeat(in_size, 1, 1, 1)
+#         x0 = torch.concat((dispatchs, info), 2)
+#         x0 = self.conv1(x0)
+#         x0 = F.relu(x0)
+#         x0 = F.max_pool2d(x0, 2, 2)
+#         x0 = self.conv2(x0)
+#         x0 = F.relu(x0)
+#         x0 = F.max_pool2d(x0, 2, 2)
+#         x0 = self.conv3(x0)
+#         x0 = F.relu(x0)
+#         x0 = x0.view(in_size, -1)
+#         x0 = self.fc1(x0)
+#         x0 = F.relu(x0)
+#         x = torch.cat((x0, lefttime.view(in_size,-1)), 1)
+#         x = self.fc2(x)
+#         x = F.relu(x)
+#         value = self.value_head(x).sum()
+#         return value
+
 class Actor(nn.Module):
     def __init__(self):
         super(Actor, self).__init__()
         self.conv1 = nn.Conv2d(2, 10, 3)
         self.conv2 = nn.Conv2d(10, 20, 3)
         self.conv3 = nn.Conv2d(20, 10, 3)
+        self.conv4 = nn.Conv2d(1, 3, 3)
+        self.conv5 = nn.Conv2d(3, 3, 3)
         self.fc1 = nn.Linear(10*26*26, 800)
-        self.fc2 = nn.Linear(800+1, 300)
-        self.action_head = nn.Linear(300, 118)
+        self.fc2 = nn.Linear(800, 340 - 1)
+        self.action_head = nn.Linear(243, 118)
 
     def forward(self, state):
         dispatchs, lefttime, info = state[0], state[1], state[2]
         in_size = dispatchs.shape[0]
-        dispatchs = dispatchs.unsqueeze(2)
-        info = info.repeat(in_size, 1, 1, 1)
-        x0 = torch.concat((dispatchs, info), 2)
-        x0 = self.conv1(x0)
-        x0 = F.relu(x0)
-        x0 = F.max_pool2d(x0, 2, 2)
-        x0 = self.conv2(x0)
-        x0 = F.relu(x0)
-        x0 = F.max_pool2d(x0, 2, 2)
-        x0 = self.conv3(x0) 
-        x0 = F.relu(x0)
-        x0 = x0.view(in_size, -1)
-        x0 = self.fc1(x0)
-        x0 = F.relu(x0)
-        x = torch.cat((x0, lefttime.view(in_size,-1)), 1)
-        x = self.fc2(x)
-        x = F.relu(x)
-        action_probs = F.softmax(self.action_head(x), dim=1)
-        return action_probs
+        info = info.unsqueeze(0)
+        info = self.conv1(info)
+        info = F.relu(info)
+        info = F.max_pool2d(info, 2, 2)
+        info = self.conv2(info)
+        info = F.relu(info)
+        info = F.max_pool2d(info, 2, 2)
+        info = self.conv3(info)
+        info = F.relu(info)
+        info = info.view(1, -1)
+        info = self.fc1(info)
+        info = F.relu(info)
+        info = self.fc2(info)
+        info = F.relu(info)
 
+        action_probs = []
+        for i in range(in_size):
+            dispatch = dispatchs[i].view(1, -1)
+            t = lefttime[i].unsqueeze(0)
+            x = torch.concat((info, dispatch, t), 1).view(1, 1, 24, -1)
+            x = self.conv4(x)
+            x = F.relu(x)
+            x = F.max_pool2d(x, 2, 2)
+            x = self.conv5(x)
+            x = F.relu(x)
+            x = x.view(1, -1)
+            action_probs.append(F.softmax(self.action_head(x), dim=1))
+        return torch.concat(action_probs, 0)
 
 
 class Critic(nn.Module):
@@ -70,33 +148,43 @@ class Critic(nn.Module):
         self.conv1 = nn.Conv2d(2, 10, 3)
         self.conv2 = nn.Conv2d(10, 20, 3)
         self.conv3 = nn.Conv2d(20, 10, 3)
+        self.conv4 = nn.Conv2d(1, 3, 3)
+        self.conv5 = nn.Conv2d(3, 3, 3)
         self.fc1 = nn.Linear(10*26*26, 800)
-        self.fc2 = nn.Linear(800+1, 300)
-        self.value_head = nn.Linear(300, 1)
+        self.fc2 = nn.Linear(800, 340 - 1)
+        self.value_head = nn.Linear(243, 1)
 
     def forward(self, state):
         dispatchs, lefttime, info = state[0], state[1], state[2]
         in_size = dispatchs.shape[0]
-        dispatchs = dispatchs.unsqueeze(2)
-        info = info.repeat(in_size, 1, 1, 1)
-        x0 = torch.concat((dispatchs, info), 2)
-        x0 = self.conv1(x0)
-        x0 = F.relu(x0)
-        x0 = F.max_pool2d(x0, 2, 2)
-        x0 = self.conv2(x0)
-        x0 = F.relu(x0)
-        x0 = F.max_pool2d(x0, 2, 2)
-        x0 = self.conv3(x0)
-        x0 = F.relu(x0)
-        x0 = x0.view(in_size, -1)
-        x0 = self.fc1(x0)
-        x0 = F.relu(x0)
-        x = torch.cat((x0, lefttime.view(in_size,-1)), 1)
-        x = self.fc2(x)
-        x = F.relu(x)
-        value = self.value_head(x).sum()
-        return value
+        info = info.unsqueeze(0)
+        info = self.conv1(info)
+        info = F.relu(info)
+        info = F.max_pool2d(info, 2, 2)
+        info = self.conv2(info)
+        info = F.relu(info)
+        info = F.max_pool2d(info, 2, 2)
+        info = self.conv3(info)
+        info = F.relu(info)
+        info = info.view(1, -1)
+        info = self.fc1(info)
+        info = F.relu(info)
+        info = self.fc2(info)
+        info = F.relu(info)
 
+        value = 0
+        for i in range(in_size):
+            dispatch = dispatchs[i].view(1, -1)
+            t = lefttime[i].unsqueeze(0)
+            x = torch.concat((info, dispatch, t), 1).view(1, 1, 24, -1)
+            x = self.conv4(x)
+            x = F.relu(x)
+            x = F.max_pool2d(x, 2, 2)
+            x = self.conv5(x)
+            x = F.relu(x)
+            x = x.view(1, -1)
+            value += self.value_head(x)
+        return value
 
 class PPO():
     clip_param = 0.2
@@ -163,6 +251,7 @@ class PPO():
             for index in BatchSampler(SubsetRandomSampler(range(len(self.buffer))), self.batch_size, False):
                 if self.training_step % 1000 ==0:
                     print('I_ep {} ，train {} times'.format(i_ep,self.training_step))
+                    print(f'loss:{action_loss}, {value_loss}')
                 #with torch.no_grad():
                 Gt_index = Gt[index].view(-1, 1)
                 V = torch.zeros(len(index), 1).to(DEVICE)
@@ -172,11 +261,8 @@ class PPO():
                     state_index = (state_index[0].to(DEVICE), state_index[1].to(DEVICE), state_index[2].to(DEVICE))
                     actions_index = actions[ind_]
                     old_action_log_probs_index = old_action_log_probs[ind_]
-                    action_probs = torch.zeros(len(actions_index), 1)
-                    for k, action in enumerate(actions_index):
-                        state_ = (state_index[0][k].unsqueeze(0), state_index[1][k].unsqueeze(0), state_index[2])
-                        V[n] += self.critic_net(state_)
-                        action_probs[k] = self.actor_net(state_)[actions_index[k]]
+                    V[n] = self.critic_net(state_index)
+                    action_probs = self.actor_net(state_index).gather(1, actions_index)
                     ratio[n] = (action_probs/old_action_log_probs_index).mean()
 
                 delta = Gt_index - V
@@ -215,6 +301,7 @@ def main():
                 state, reward, done, _ = env.step([])
                 continue
             actions, action_probs = agent.select_action(state)
+            value = agent.get_value(state)
             next_state, reward, done, _ = env.step(actions)
             trans = Transition(state, actions, action_probs, reward, next_state)
             agent.store_transition(trans)
