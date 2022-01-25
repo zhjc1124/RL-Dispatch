@@ -301,7 +301,7 @@ def main():
                 state, reward, done, _ = env.step([])
                 continue
             actions, action_probs = agent.select_action(state)
-            value = agent.get_value(state)
+            # value = agent.get_value(state)
             next_state, reward, done, _ = env.step(actions)
             trans = Transition(state, actions, action_probs, reward, next_state)
             agent.store_transition(trans)
