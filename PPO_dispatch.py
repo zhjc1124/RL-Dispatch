@@ -220,8 +220,8 @@ def main():
             agent.store_transition(trans)
             state = next_state
 
-            # if done:
-            if len(agent.buffer) >= agent.batch_size:
+            if done:
+            # if len(agent.buffer) >= agent.batch_size:
                 if len(agent.buffer) >= agent.batch_size: agent.update(i_epoch)
                 agent.writer.add_scalar('liveTime/livestep', t, global_step=i_epoch)
                 break
