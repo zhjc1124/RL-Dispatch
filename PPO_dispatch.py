@@ -157,7 +157,7 @@ class PPO():
         for r in reward[::-1]:
             R = r + gamma * R
             Gt.insert(0, R)
-        Gt = torch.tensor(Gt, dtype=torch.float)
+        Gt = torch.tensor(Gt, dtype=torch.float).to(DEVICE)
         # print("The agent is updateing....")
         for i in range(self.ppo_update_time):
             for index in BatchSampler(SubsetRandomSampler(range(len(self.buffer))), self.batch_size, False):
@@ -165,8 +165,8 @@ class PPO():
                     print('I_ep {} ，train {} times'.format(i_ep,self.training_step))
                 #with torch.no_grad():
                 Gt_index = Gt[index].view(-1, 1)
-                V = torch.zeros(len(index), 1)
-                ratio = torch.zeros(len(index), 1)
+                V = torch.zeros(len(index), 1).to(DEVICE)
+                ratio = torch.zeros(len(index), 1).to(DEVICE)
                 for n, ind_ in enumerate(index):
                     state_index = state[ind_]
                     state_index = (state_index[0].to(DEVICE), state_index[1].to(DEVICE), state_index[2].to(DEVICE))
