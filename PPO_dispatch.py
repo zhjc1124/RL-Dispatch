@@ -27,7 +27,7 @@ num_action = 118
 torch.manual_seed(seed)
 Transition = namedtuple('Transition', ['state', 'actions',  'a_log_probs', 'reward', 'next_state'])
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+# DEVICE = "cpu"
 
 class Actor(nn.Module):
     def __init__(self):
@@ -40,7 +40,7 @@ class Actor(nn.Module):
         self.action_head = nn.Linear(300, 118)
 
     def forward(self, state):
-        dispatchs, lefttime, info = state[0].to(DEVICE), state[1].to(DEVICE), state[2].to(DEVICE)
+        dispatchs, lefttime, info = state[0], state[1], state[2]
         in_size = dispatchs.shape[0]
         dispatchs = dispatchs.unsqueeze(2)
         info = info.repeat(in_size, 1, 1, 1)
@@ -75,7 +75,7 @@ class Critic(nn.Module):
         self.value_head = nn.Linear(300, 1)
 
     def forward(self, state):
-        dispatchs, lefttime, info = state[0].to(DEVICE), state[1].to(DEVICE), state[2].to(DEVICE)
+        dispatchs, lefttime, info = state[0], state[1], state[2]
         in_size = dispatchs.shape[0]
         dispatchs = dispatchs.unsqueeze(2)
         info = info.repeat(in_size, 1, 1, 1)
@@ -122,6 +122,7 @@ class PPO():
 
     def select_action(self, state):
         with torch.no_grad():
+            state = (state[0].to(DEVICE), state[1].to(DEVICE), state[2].to(DEVICE))
             action_probs = self.actor_net(state)
             c = Categorical(action_probs)
             actions = c.sample().view(-1, 1)
@@ -129,6 +130,7 @@ class PPO():
 
     def get_value(self, state):
         with torch.no_grad():
+            state = (state[0].to(DEVICE), state[1].to(DEVICE), state[2].to(DEVICE))
             value = self.critic_net(state)
         return value.item()
 
@@ -167,10 +169,14 @@ class PPO():
                 ratio = torch.zeros(len(index), 1)
                 for n, ind_ in enumerate(index):
                     state_index = state[ind_]
+                    state_index = (state_index[0].to(DEVICE), state_index[1].to(DEVICE), state_index[2].to(DEVICE))
                     actions_index = actions[ind_]
                     old_action_log_probs_index = old_action_log_probs[ind_]
-                    V[n] = self.critic_net(state_index)
-                    action_probs = self.actor_net(state_index).gather(1, actions_index)
+                    action_probs = torch.zeros(len(actions_index), 1)
+                    for k, action in enumerate(actions_index):
+                        state_ = (state_index[0][k].unsqueeze(0), state_index[1][k].unsqueeze(0), state_index[2])
+                        V[n] += self.critic_net(state_)
+                        action_probs[k] = self.actor_net(state_)[actions_index[k]]
                     ratio[n] = (action_probs/old_action_log_probs_index).mean()
 
                 delta = Gt_index - V
@@ -214,7 +220,8 @@ def main():
             agent.store_transition(trans)
             state = next_state
 
-            if done:
+            # if done:
+            if len(agent.buffer) >= agent.batch_size:
                 if len(agent.buffer) >= agent.batch_size: agent.update(i_epoch)
                 agent.writer.add_scalar('liveTime/livestep', t, global_step=i_epoch)
                 break
