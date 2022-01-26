@@ -251,7 +251,6 @@ class PPO():
             for index in BatchSampler(SubsetRandomSampler(range(len(self.buffer))), self.batch_size, False):
                 if self.training_step % 1000 ==0:
                     print('I_ep {} ，train {} times'.format(i_ep,self.training_step))
-                    print(f'loss:{action_loss}, {value_loss}')
                 #with torch.no_grad():
                 Gt_index = Gt[index].view(-1, 1)
                 V = torch.zeros(len(index), 1).to(DEVICE)
