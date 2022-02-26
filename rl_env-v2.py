@@ -22,7 +22,7 @@ class Dispatch:
         # self.receive_step = data['receive_step']
         self.arrive_step = 0
         self.current_station = data['sender_station']
-        self.next_station = 0
+        self.next_station = None
         self.time_constrain = TIME_CONSTRAINS[self.sender_station, self.receiver_station]
         self.left_step = self.time_constrain * 6     # 1 step = 10 min
         self.custpay = 5
@@ -35,8 +35,12 @@ class Dispatch:
             ))
         self.states = torch.cat((
             station_onehot(self.current_station),
-            torch.tensor([self.left_step*10, 0])
+            torch.tensor([self.left_step*10])
             )).unsqueeze(0)
+        self.actions = []
+        self.action_probs = []
+        self.action_steps = []
+
 
     def reward(self):
         assert(self.hops[-1]==self.receiver_station)
@@ -50,16 +54,20 @@ class Dispatch:
         self.hops.append(chosed_subway['swipe_out_station'])
         self.arrive_step = chosed_subway['swipe_out_step']
 
-    def step(self, action):
-        pass
-    
-    def update(self):
-        pass
+    def step(self, action, action_prob, action_step):
+        self.next_station = action
+        self.hops.append(action)
+        self.actions.append(action)
+        self.action_probs.append(action_prob)
+        self.action_steps.append(action_step)
 
-    def add_states(self):
+    def update(self):
+        self.left_step -= 1
+
+    def record_states(self):
         state = torch.cat((                                     
             station_onehot(self.current_station),
-            torch.tensor([self.left_step*10, 0])
+            torch.tensor([self.left_step*10])
             )).unsqueeze(0)
         self.states = torch.cat((self.states, state))
 
@@ -91,27 +99,28 @@ class Myenv:
     def time2step(self, x):
         return (x-self.time).seconds // 600
 
-    def step(self, actions):
+    def step(self, actions, action_probs=None):
         # chose action for packages
         assert(len(actions) == len(self.dispatchs_waiting))
-
+        if action_probs is None:
+            action_probs = [1] * len(actions)
         for i in range(len(actions)):
-            self.dispatchs_waiting[i].step(actions[i])
+            self.dispatchs_waiting[i].step(actions[i], action_probs[i], self.step_nums)
             self.dispatchs_selected.append(self.dispatchs_waiting[i])
-        
+        self.dispatchs_waiting = []
+
         selected = []
         for dispatch in self.dispatchs_selected:
-            action = self.dispatchs_waiting[i].next_station
+            action = dispatch.next_station
             avail_subway = self.subways_entering[self.subways_entering['swipe_out_station']==action]
-            avail_subway = self.subways_entering[self.subways_entering['swipe_out_station']==actions[i]]
             if not avail_subway.empty:
                 chosed_subway = avail_subway.sample().iloc[0]
-                self.dispatchs_selected[i].deliver(chosed_subway)
-                self.dispatchs_delivering.append(self.dispatchs_waiting[i])
-                self.state['packages'][0][self.dispatchs_waiting[i].hops[-2]] -= 1
-                self.state['packages'][1][self.dispatchs_waiting[i].hops[-2], self.dispatchs_waiting[i].hops[-1]] += 1
+                dispatch.deliver(chosed_subway)
+                self.dispatchs_delivering.append(dispatch)
+                self.state['packages'][0][dispatch.hops[-2]] -= 1
+                self.state['packages'][1][dispatch.hops[-2], dispatch.hops[-1]] += 1
             else:
-                waiting.append(self.dispatchs_waiting [i])
+                selected.append(dispatch)
         self.dispatchs_selected = selected
 
         # set the commuting passengers
@@ -125,22 +134,23 @@ class Myenv:
         self.step_nums += 1
 
         if self.step_nums == 144:
-            return None, None, True, self.time
+            return [], True, self.time
 
-        for dispatch in self.dispatchs_delivering:
-            dispatch.step()
-        for dispatch in self.dispatchs_waiting:
-            dispatch.step()
-        self.dispatchs_arrived = []
+        for dispatch in self.dispatchs_selected:
+            dispatch.update()
 
         delivering = []
+        waiting = []
         for dispatch in self.dispatchs_delivering:
-            if dispatch.arrive_step == self.step_nums:
+            dispatch.update()
+            if dispatch.arrive_step+1 == self.step_nums:
                 self.state['packages'][1][dispatch.hops[-2], dispatch.hops[-1]] -= 1
                 if dispatch.hops[-1] == dispatch.receiver_station:
                     self.dispatchs_arrived.append(dispatch)
                 else:
-                    self.dispatchs_waiting.append(dispatch)
+                    self.state['packages'][0][dispatch.hops[-1]] += 1
+                    dispatch.record_states()
+                    waiting.append(dispatch)
             else:
                 delivering.append(dispatch)
         
@@ -151,40 +161,24 @@ class Myenv:
         for index, row in arrived.iterrows():
             self.state['passengers'][1][row['swipe_in_station'], row['swipe_out_station']] -= 1
 
-        dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_step']+1==self.step_nums]
+        dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_step']+1 == self.step_nums]
+
         for index, row in dispatchs_handling.iterrows():
             dispatch = Dispatch(row)
-            self.dispatchs_waiting.append(dispatch)
-
-        self.state['packages'][0] = torch.zeros(self.station_num)
-
-        dispatchs_output = []
-        times = []
-        for dispatch in self.dispatchs_waiting:
-            source, target, lefttime = dispatch.output()
-            dispatchs_output.append(torch.concat((F.one_hot(torch.tensor(source).long(), 118).unsqueeze(0), F.one_hot(torch.tensor(target).long(), 118).unsqueeze(0)), 0).unsqueeze(0))
-            times.append(lefttime)
+            waiting.append(dispatch)
             self.state['packages'][0][dispatch.sender_station] += 1
+        self.dispatchs_waiting = waiting
 
-        if dispatchs_output:
-            dispatchs_output = torch.concat(dispatchs_output, 0)
-            times = torch.tensor(times, dtype=torch.float).view(-1, 1)
-
-        self.state['passengers'][0] = torch.zeros(self.station_num)
         self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] == self.step_nums]
         for index, row in self.subways_entering.iterrows():
             self.state['passengers'][0][row['swipe_in_station']] += 1
-
-
-        self.state['reward'] = reward
-        self.state['time'] = strftime(self.time)
-
         info = torch.zeros(2, self.station_num+1, self.station_num)
         info[0, 0] = self.state['packages'][0]
         info[0, 1:] = self.state['packages'][1]
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
-        return (dispatchs_output, times, info), self.state['reward'], self.state['done'], self.state['time']
+        self.infos.append(info)
+        return self.dispatchs_waiting, False, self.time
     
     def reset(self, day=1):
         '''
@@ -216,11 +210,9 @@ class Myenv:
         self.dispatchs_eval = self.dispatchs_eval[self.dispatchs_eval['send_datetime'].apply(lambda x: x.day) == day]
         self.dispatchs_eval['send_step'] = self.dispatchs_eval['send_datetime'].apply(self.time2step)
 
-        self.dispatchs_eval = self.dispatchs_eval.sample(n=100)
+        self.dispatchs_eval = self.dispatchs_eval.sample(n=10)
         self.dispatchs_eval = self.dispatchs_eval.sort_values(by='send_datetime')
         self.dispatchs_eval = self.dispatchs_eval.reset_index(drop=True)
-        # print(self.dispatchs_eval)
-        # input()
 
         subways_eval = self.subways.copy(deep=True)
         subways_eval['swipe_in_time'] = pd.to_datetime(f'2021-11-{day:02d} ' + subways_eval['swipe_in_time'])
@@ -235,13 +227,13 @@ class Myenv:
         self.step_nums = 0
         self.state['time'] = self.time
 
-        dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_datetime']+1 == self.step_nums]
-        dispatch_waiting = []
+        dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_step']+1 == self.step_nums]
+        waiting = []
         for index, row in dispatchs_handling.iterrows():
             dispatch = Dispatch(row)
-            dispatchs_waiting.append(dispatch)
+            waiting.append(dispatch)
             self.state['packages'][0][dispatch.sender_station] += 1
-        self.dispatchs_waiting = dispatchs_wating
+        self.dispatchs_waiting = waiting
 
         self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] == self.step_nums]
         for index, row in self.subways_entering.iterrows():
@@ -272,21 +264,17 @@ class Myenv:
         subways = subways.sort_values(by='swipe_in_time')
         subways = subways.reset_index(drop=True)        
         self.subways = subways
+
         subways.to_csv('./dataset/subways_sorted.csv', sep=',')
 
 
 if __name__ == '__main__':
     env = Myenv()
-    state = env.reset()
-    total_reward = 0
+    dispatchs, done, _ = env.reset()
     while True:
-        dispatchs, lefttime, info = state
-        if len(dispatchs) > 0:
-            actions = torch.argmax(dispatchs[:, 1, :], dim=1)
-        else:
-            actions = torch.tensor([])
-        state, reward, done, _ = env.step(actions)
-        total_reward += reward
+        actions = []
+        for dispatch in dispatchs:
+            actions.append(dispatch .receiver_station)
+        dispatchs, done, _ = env.step(actions)
         if done:
             break
-    print(total_reward)
