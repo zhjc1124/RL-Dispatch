@@ -22,7 +22,6 @@ class Dispatch:
         # self.receive_step = data['receive_step']
         self.arrive_step = 0
         self.current_station = data['sender_station']
-        self.next_station = None
         self.time_constrain = TIME_CONSTRAINS[self.sender_station, self.receiver_station]
         self.left_step = self.time_constrain * 6     # 1 step = 10 min
         self.custpay = 5
@@ -37,25 +36,23 @@ class Dispatch:
             station_onehot(self.current_station),
             torch.tensor([self.left_step*10])
             )).unsqueeze(0)
+        self.subways = []
         self.actions = []
         self.action_probs = []
         self.action_steps = []
-
+    
 
     def reward(self):
-        assert(self.hops[-1]==self.receiver_station)
-        reward = -len(self.hops)+1
-        if self.left_step > -1:
-            reward += 5
-
+        reward = (len(self.hops) - 1) * self.hopcost
+        if self.left_step > -1 and self.hops[-1] == self.receiver_station:
+            reward += self.custpay
         return reward
 
     def deliver(self, chosed_subway):
-        self.hops.append(chosed_subway['swipe_out_station'])
+        self.subways.append(chosed_subway)
         self.arrive_step = chosed_subway['swipe_out_step']
 
     def step(self, action, action_prob, action_step):
-        self.next_station = action
         self.hops.append(action)
         self.actions.append(action)
         self.action_probs.append(action_prob)
@@ -111,8 +108,8 @@ class Myenv:
 
         selected = []
         for dispatch in self.dispatchs_selected:
-            action = dispatch.next_station
-            avail_subway = self.subways_entering[self.subways_entering['swipe_out_station']==action]
+            avail_subway = self.subways_entering[self.subways_entering['swipe_in_station']==dispatch.hops[-2]]
+            avail_subway = avail_subway[avail_subway['swipe_out_station']==dispatch.hops[-1]]
             if not avail_subway.empty:
                 chosed_subway = avail_subway.sample().iloc[0]
                 dispatch.deliver(chosed_subway)
@@ -125,6 +122,7 @@ class Myenv:
 
         # set the commuting passengers
         for index, row in self.subways_entering.iterrows():
+            self.state['passengers'][0][row['swipe_in_station']] -= 1
             self.state['passengers'][1][row['swipe_in_station'], row['swipe_out_station']] += 1
 
         # self.subways_commuting = self.subways_commuting.append(self.subways_entering)
@@ -132,9 +130,6 @@ class Myenv:
         # next episode
         self.time += self.episode
         self.step_nums += 1
-
-        if self.step_nums == 144:
-            return [], True, self.time
 
         for dispatch in self.dispatchs_selected:
             dispatch.update()
@@ -156,12 +151,13 @@ class Myenv:
         
         self.dispatchs_delivering = delivering
 
-        arrived = self.subways_commuting[self.subways_commuting['swipe_out_step'] == self.step_nums]
+        arrived = self.subways_commuting[self.subways_commuting['swipe_out_step'] <= self.step_nums]
         self.subways_commuting = self.subways_commuting.drop(arrived.index)
         for index, row in arrived.iterrows():
             self.state['passengers'][1][row['swipe_in_station'], row['swipe_out_station']] -= 1
 
-        dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_step']+1 == self.step_nums]
+        dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_step']+1 <= self.step_nums]
+        self.dispatchs_eval = self.dispatchs_eval.drop(dispatchs_handling.index)
 
         for index, row in dispatchs_handling.iterrows():
             dispatch = Dispatch(row)
@@ -169,7 +165,8 @@ class Myenv:
             self.state['packages'][0][dispatch.sender_station] += 1
         self.dispatchs_waiting = waiting
 
-        self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] == self.step_nums]
+        self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] <= self.step_nums]
+        self.subways_eval = self.subways_eval.drop(self.subways_entering.index)
         for index, row in self.subways_entering.iterrows():
             self.state['passengers'][0][row['swipe_in_station']] += 1
         info = torch.zeros(2, self.station_num+1, self.station_num)
@@ -178,7 +175,9 @@ class Myenv:
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
         self.infos.append(info)
-        return self.dispatchs_waiting, False, self.time
+
+
+        return self.dispatchs_waiting, self.step_nums == 144, self.time
     
     def reset(self, day=1):
         '''
@@ -210,9 +209,11 @@ class Myenv:
         self.dispatchs_eval = self.dispatchs_eval[self.dispatchs_eval['send_datetime'].apply(lambda x: x.day) == day]
         self.dispatchs_eval['send_step'] = self.dispatchs_eval['send_datetime'].apply(self.time2step)
 
-        self.dispatchs_eval = self.dispatchs_eval.sample(n=10)
-        self.dispatchs_eval = self.dispatchs_eval.sort_values(by='send_datetime')
-        self.dispatchs_eval = self.dispatchs_eval.reset_index(drop=True)
+        # self.dispatchs_eval = self.dispatchs_eval.sample(n=10)
+        # self.dispatchs_eval = self.dispatchs_eval.sort_values(by='send_datetime')
+        # self.dispatchs_eval = self.dispatchs_eval.reset_index(drop=True)
+
+        self.dispatchs_eval.to_csv('./dataset/dispatchs_eval.csv', sep=',')
 
         subways_eval = self.subways.copy(deep=True)
         subways_eval['swipe_in_time'] = pd.to_datetime(f'2021-11-{day:02d} ' + subways_eval['swipe_in_time'])
@@ -222,12 +223,14 @@ class Myenv:
         subways_eval = subways_eval.reset_index(drop=True)
         subways_eval['swipe_in_step'] = subways_eval['swipe_in_time'].apply(self.time2step)
         subways_eval['swipe_out_step'] = subways_eval['swipe_out_time'].apply(self.time2step)
+        subways_eval.to_csv('./dataset/subways_eval.csv', sep=',')
         self.subways_eval = subways_eval
 
         self.step_nums = 0
         self.state['time'] = self.time
 
-        dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_step']+1 == self.step_nums]
+        dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_step']+1 <= self.step_nums]
+        self.dispatchs_eval = self.dispatchs_eval.drop(dispatchs_handling.index)
         waiting = []
         for index, row in dispatchs_handling.iterrows():
             dispatch = Dispatch(row)
@@ -235,7 +238,8 @@ class Myenv:
             self.state['packages'][0][dispatch.sender_station] += 1
         self.dispatchs_waiting = waiting
 
-        self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] == self.step_nums]
+        self.subways_entering = self.subways_eval[self.subways_eval['swipe_in_step'] <= self.step_nums]
+        self.subways_eval = self.subways_eval.drop(self.subways_entering.index)
         for index, row in self.subways_entering.iterrows():
             self.state['passengers'][0][row['swipe_in_station']] += 1
         info = torch.zeros(2, self.station_num+1, self.station_num)
@@ -265,8 +269,13 @@ class Myenv:
         subways = subways.reset_index(drop=True)        
         self.subways = subways
 
-        subways.to_csv('./dataset/subways_sorted.csv', sep=',')
-
+    def total_reward(self):
+        total_reward = 0
+        for dispatch in self.dispatchs_arrived:
+            total_reward += dispatch.reward()
+        for dispatch in self.dispatchs_selected:
+            dispatch.hops.pop()
+            total_reward += dispatch.reward()
 
 if __name__ == '__main__':
     env = Myenv()
@@ -277,4 +286,6 @@ if __name__ == '__main__':
             actions.append(dispatch .receiver_station)
         dispatchs, done, _ = env.step(actions)
         if done:
+
+            print(env.total_reward())
             break
