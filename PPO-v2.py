@@ -13,7 +13,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Normal, Categorical
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
-from tensorboardX import SummaryWriter
+import random
 
 # Parameters
 gamma = 0.99
@@ -22,12 +22,16 @@ seed = 1
 log_interval = 10
 
 env = Myenv()
-num_state = 28442
+num_state = 28444
 num_action = 118
 torch.manual_seed(seed)
-Transition = namedtuple('Transition', ['state', 'action',  'a_log_prob', 'reward', 'next_state'])
+np.random.seed(seed)
+random.seed(seed)
+Transition = namedtuple('Transition', ['state', 'action',  'a_log_prob', 'reward'])
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-   
+DELTA = torch.load('./dataset/delta.pth')
+
+
 class Actor(nn.Module):
     def __init__(self):
         super(Actor, self).__init__()
@@ -35,8 +39,23 @@ class Actor(nn.Module):
         self.action_head = nn.Linear(5000, num_action)
 
     def forward(self, x):
+        state = x
+
         x = F.relu(self.fc1(x))
-        action_prob = F.softmax(self.action_head(x), dim=1)
+
+        # if self.mode == 'train':  
+        o = state[0, 28084:28084+118].argmax()  
+        # d = state[0, 28084+118:28084+2*118].argmax()
+        current_step = int(state[0, -1])
+        left_step = int(state[0, -3]/10)
+        delta = DELTA[current_step, o]
+        if (delta < left_step).all():
+            mask = delta < left_step
+        else:
+            mask = delta < delta.topk(10, largest=False)[0].max()
+
+        x = torch.exp(self.action_head(x)) * mask
+        action_prob = x/x.sum()
         return action_prob
 
 
@@ -59,14 +78,14 @@ class PPO():
     buffer_capacity = 1000
     batch_size = 32
 
-    def __init__(self):
+    def __init__(self, mode='train'):
         super(PPO, self).__init__()
         self.actor_net = Actor().to(DEVICE)
         self.critic_net = Critic().to(DEVICE)
         self.buffer = []
         self.counter = 0
         self.training_step = 0
-        self.writer = SummaryWriter('../exp')
+        self.mode = mode
 
         self.actor_optimizer = optim.Adam(self.actor_net.parameters(), 1e-3)
         self.critic_net_optimizer = optim.Adam(self.critic_net.parameters(), 3e-3)
@@ -78,9 +97,13 @@ class PPO():
         state = state.float().unsqueeze(0).to(DEVICE)
         with torch.no_grad():
             action_prob = self.actor_net(state)
-        c = Categorical(action_prob)
-        action = c.sample()
-        return action.item(), action_prob[:,action.item()].item()
+
+        if self.mode == 'train':
+            c = Categorical(action_prob)
+            action = c.sample()
+        else:
+            action = action_prob.argmax()
+        return action.item(), action_prob[:, action.item()].item()
 
     def get_value(self, state):
         state = torch.from_numpy(state)
@@ -97,15 +120,8 @@ class PPO():
         self.counter += 1
 
 
-    def update(self, i_ep):
-        state = torch.tensor([t.state for t in self.buffer], dtype=torch.float)
-        action = torch.tensor([t.action for t in self.buffer], dtype=torch.long).view(-1, 1)
-        reward = [t.reward for t in self.buffer]
-        # update: don't need next_state
-        #reward = torch.tensor([t.reward for t in self.buffer], dtype=torch.float).view(-1, 1)
-        #next_state = torch.tensor([t.next_state for t in self.buffer], dtype=torch.float)
-        old_action_log_prob = torch.tensor([t.a_log_prob for t in self.buffer], dtype=torch.float).view(-1, 1)
-
+    def update(self, info):
+        state, action, reward, old_action_log_prob = info
         R = 0
         Gt = []
         for r in reward[::-1]:
@@ -114,10 +130,7 @@ class PPO():
         Gt = torch.tensor(Gt, dtype=torch.float)
         #print("The agent is updateing....")
         for i in range(self.ppo_update_time):
-            for index in BatchSampler(SubsetRandomSampler(range(len(self.buffer))), self.batch_size, False):
-                if self.training_step % 1000 ==0:
-                    print('I_ep {} ，train {} times'.format(i_ep,self.training_step))
-                #with torch.no_grad():
+            for index in range(len(reward)):
                 Gt_index = Gt[index].view(-1, 1)
                 V = self.critic_net(state[index])
                 delta = Gt_index - V
@@ -131,7 +144,6 @@ class PPO():
 
                 # update actor network
                 action_loss = -torch.min(surr1, surr2).mean()  # MAX->MIN desent
-                self.writer.add_scalar('loss/action_loss', action_loss, global_step=self.training_step)
                 self.actor_optimizer.zero_grad()
                 action_loss.backward()
                 nn.utils.clip_grad_norm_(self.actor_net.parameters(), self.max_grad_norm)
@@ -139,14 +151,11 @@ class PPO():
 
                 #update critic network
                 value_loss = F.mse_loss(Gt_index, V)
-                self.writer.add_scalar('loss/value_loss', value_loss, global_step=self.training_step)
                 self.critic_net_optimizer.zero_grad()
                 value_loss.backward()
                 nn.utils.clip_grad_norm_(self.critic_net.parameters(), self.max_grad_norm)
                 self.critic_net_optimizer.step()
-                self.training_step += 1
 
-        del self.buffer[:] # clear experience
 
     
 def main():
@@ -164,16 +173,16 @@ def main():
                 pass
             dispatchs, done, _ = env.step(actions, action_probs)
 
+            # if env.dispatchs_arrived:
             if done:
-                if len(agent.buffer) >= agent.batch_size:agent.update(i_epoch)
-                agent.writer.add_scalar('liveTime/livestep', t, global_step=i_epoch)
+                dispatchs = env.dispatchs_arrived + env.dispatchs_selected
+                random.shuffle(dispatchs)
+                for dispatch in dispatchs:
+                    agent.update(env.finish(dispatch))
+                    pass
                 break
-            # action, action_prob = agent.select_action(state)
-            # next_state, reward, done, _ = env.step(action)
-            # trans = Transition(state, action, action_prob, reward, next_state)
-            # if render: env.render()
-            # agent.store_transition(trans)
-            # state = next_state
+        torch.save(agent.actor_net, './pth/actor.pth')
+        torch.save(agent.critic_net, './pth/critic.pth')
 
 if __name__ == '__main__':
     main()

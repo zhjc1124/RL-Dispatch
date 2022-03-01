@@ -3,7 +3,9 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 import torch.nn.functional as F
-
+seed = 1
+torch.manual_seed(seed)
+np.random.seed(seed)
 TIME_CONSTRAINS = np.load('./raw_data/dis_time.npy')
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -16,6 +18,7 @@ def station_onehot(station):
 
 class Dispatch:
     def __init__(self, data):
+        self.status = 'waiting'
         self.sender_station = data['sender_station']
         self.receiver_station = data['receiver_station']
         self.send_step = data['send_step']
@@ -32,10 +35,7 @@ class Dispatch:
             station_onehot(self.receiver_station), 
             torch.tensor([self.time_constrain*60, self.custpay, self.hopcost])
             ))
-        self.states = torch.cat((
-            station_onehot(self.hops[-1]),
-            torch.tensor([self.left_step*10])
-            )).unsqueeze(0)
+        self.states = None
         self.subways = []
         self.actions = []
         self.action_probs = []
@@ -44,8 +44,9 @@ class Dispatch:
 
     def reward(self):
         reward = (len(self.hops) - 1) * self.hopcost
-        if self.left_step > -1 and self.hops[-1] == self.receiver_station:
+        if self.left_step > -1 and self.status == 'arrived':
             reward += self.custpay
+        
         return reward
 
     def deliver(self, chosed_subway):
@@ -61,20 +62,15 @@ class Dispatch:
     def update(self):
         self.left_step -= 1
 
-    def record_states(self):
+    def record_states(self, current_step):
         state = torch.cat((                                     
             station_onehot(self.hops[-1]),
-            torch.tensor([self.left_step*10])
+            torch.tensor([self.left_step*10, len(self.hops) - 1, current_step])
             )).unsqueeze(0)
-        self.states = torch.cat((self.states, state))
-
-    def output(self):
-        if self.left_step < 0:
-            lefttime = -1
+        if self.states is None:
+            self.states = state
         else:
-            lefttime = self.left_step * 10
-
-        return [self.hops[-1], self.receiver_station, lefttime]
+            self.states = torch.cat((self.states, state))
 
     def get_state(self):
         return torch.cat((self.commons, self.states[-1]))
@@ -107,6 +103,7 @@ class Myenv:
             action_probs = [1] * len(actions)
         for i in range(len(actions)):
             self.dispatchs_waiting[i].step(actions[i], action_probs[i], self.step_nums)
+            self.dispatchs_waiting[i].status = 'selected'
             self.dispatchs_selected.append(self.dispatchs_waiting[i])
         self.dispatchs_waiting = []
 
@@ -116,11 +113,13 @@ class Myenv:
             avail_subway = avail_subway[avail_subway['swipe_out_station']==dispatch.hops[-1]]
             if not avail_subway.empty:
                 chosed_subway = avail_subway.sample().iloc[0]
+                dispatch.status = 'delivering'
                 dispatch.deliver(chosed_subway)
                 self.dispatchs_delivering.append(dispatch)
                 self.state['packages'][0][dispatch.hops[-2]] -= 1
                 self.state['packages'][1][dispatch.hops[-2], dispatch.hops[-1]] += 1
             else:
+                
                 selected.append(dispatch)
         self.dispatchs_selected = selected
 
@@ -145,10 +144,12 @@ class Myenv:
             if dispatch.arrive_step+1 == self.step_nums:
                 self.state['packages'][1][dispatch.hops[-2], dispatch.hops[-1]] -= 1
                 if dispatch.hops[-1] == dispatch.receiver_station:
+                    dispatch.status = 'arrived'
                     self.dispatchs_arrived.append(dispatch)
                 else:
                     self.state['packages'][0][dispatch.hops[-1]] += 1
-                    dispatch.record_states()
+                    dispatch.record_states(self.step_nums)
+                    dispatch.status = 'waiting'
                     waiting.append(dispatch)
             else:
                 delivering.append(dispatch)
@@ -165,6 +166,7 @@ class Myenv:
 
         for index, row in dispatchs_handling.iterrows():
             dispatch = Dispatch(row)
+            dispatch.record_states(self.step_nums)
             waiting.append(dispatch)
             self.state['packages'][0][dispatch.sender_station] += 1
         self.dispatchs_waiting = waiting
@@ -179,7 +181,6 @@ class Myenv:
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
         self.infos.append(info)
-
         return self.dispatchs_waiting, self.step_nums == 144, self.time
     
     def reset(self, day=1):
@@ -211,10 +212,12 @@ class Myenv:
         self.dispatchs_eval = self.dispatchs.copy(deep=True)
         self.dispatchs_eval = self.dispatchs_eval[self.dispatchs_eval['send_datetime'].apply(lambda x: x.day) == day]
         self.dispatchs_eval['send_step'] = self.dispatchs_eval['send_datetime'].apply(self.time2step)
-        self.dispatchs_eval['recieve_step'] = self.dispatchs_eval['recieve_datetime'].apply(self.time2step)
+        self.dispatchs_eval['receive_step'] = self.dispatchs_eval['receive_datetime'].apply(self.time2step)
+
         # self.dispatchs_eval = self.dispatchs_eval.sample(n=10)
-        # self.dispatchs_eval = self.dispatchs_eval.sort_values(by='send_datetime')
-        # self.dispatchs_eval = self.dispatchs_eval.reset_index(drop=True)
+        self.dispatchs_eval = self.dispatchs_eval.sample(frac=0.8) # 31312
+        self.dispatchs_eval = self.dispatchs_eval.sort_values(by='send_datetime')
+        self.dispatchs_eval = self.dispatchs_eval.reset_index(drop=True)
 
         self.dispatchs_eval.to_csv('./dataset/dispatchs_eval.csv', sep=',')
 
@@ -287,6 +290,20 @@ class Myenv:
         state = torch.cat((global_state.flatten(), private_state))
         return state
 
+    def finish(self, dispatch):
+        n = len(dispatch.action_steps)
+        states = []
+        actions = dispatch.actions
+        for i in range(n):
+            global_state = self.infos[dispatch.action_steps[i]]
+            private_state = dispatch.states[i]
+            state = torch.cat((global_state.flatten(), private_state))
+            states.append(state)
+
+        rewards = [0] * n 
+        rewards[-1] = dispatch.reward()
+        old_action_log_probs = dispatch.action_probs
+        return states, actions, rewards, old_action_log_probs
 
 if __name__ == '__main__':
     env = Myenv()
@@ -294,7 +311,10 @@ if __name__ == '__main__':
     while True:
         actions = []
         for dispatch in dispatchs:
-            actions.append(dispatch .receiver_station)
+            # receiver_station = int(env.get_state(dispatch)[28084+118:28084+2*118].argmax())
+            # assert(receiver_station == dispatch.receiver_station)
+            # actions.append(receiver_station)
+            actions.append(dispatch.receiver_station)
         dispatchs, done, _ = env.step(actions)
         if done:
             print(env.total_reward())
