@@ -181,7 +181,7 @@ class Myenv:
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
         self.infos.append(info)
-        return self.dispatchs_waiting, self.step_nums == 144, self.time
+        return self.dispatchs_waiting, self.step_nums == 143, self.time
     
     def reset(self, day=1):
         '''
@@ -288,6 +288,7 @@ class Myenv:
         global_state = self.infos[-1]
         private_state = dispatch.get_state()
         state = torch.cat((global_state.flatten(), private_state))
+        state = state.float().unsqueeze(0).to(DEVICE)
         return state
 
     def finish(self, dispatch):
@@ -296,14 +297,15 @@ class Myenv:
         actions = dispatch.actions
         for i in range(n):
             global_state = self.infos[dispatch.action_steps[i]]
-            private_state = dispatch.states[i]
+            private_state = torch.cat((dispatch.commons, dispatch.states[i]))
             state = torch.cat((global_state.flatten(), private_state))
+            state = state.float().unsqueeze(0).to(DEVICE)
             states.append(state)
 
         rewards = [0] * n 
         rewards[-1] = dispatch.reward()
         old_action_log_probs = dispatch.action_probs
-        return states, actions, rewards, old_action_log_probs
+        return states, actions, old_action_log_probs, rewards, dispatch
 
 if __name__ == '__main__':
     env = Myenv()

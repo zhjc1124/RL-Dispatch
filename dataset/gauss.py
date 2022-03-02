@@ -10,9 +10,11 @@ import numpy as np
 day = 1
 subways_handling = pd.read_csv('./dataset/subways_eval.csv', sep=',', index_col=0)
 
-delta = torch.zeros(114, 118, 118)
+delta = torch.zeros(144, 118, 118)
+DELTA = torch.load('./dataset/delta.pth')
+delta[:114] = DELTA
 
-for i in range(114):
+for i in range(114, 144):
     subways_handling = subways_handling[subways_handling['swipe_in_step']>=i]
     print(i)
     for o in range(118):
@@ -23,4 +25,4 @@ for i in range(114):
                 delta[i, o, d] = int(valid['swipe_out_step'].min() - i)
             else:
                 delta[i, o, d] = 10000
-torch.save(delta, './dataset/delta.pth')
+torch.save(delta, './dataset/delta-v2.pth')

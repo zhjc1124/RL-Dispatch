@@ -13,6 +13,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Normal, Categorical
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
+from tensorboardX import SummaryWriter
 import random
 
 # Parameters
@@ -27,7 +28,7 @@ num_action = 118
 torch.manual_seed(seed)
 np.random.seed(seed)
 random.seed(seed)
-Transition = namedtuple('Transition', ['state', 'action',  'a_log_prob', 'reward'])
+Transition = namedtuple('Transition', ['state', 'action',  'a_log_prob', 'reward', 'dispatch'])
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DELTA = torch.load('./dataset/delta.pth')
 
@@ -52,8 +53,9 @@ class Actor(nn.Module):
         if (delta < left_step).all():
             mask = delta < left_step
         else:
-            mask = delta < delta.topk(10, largest=False)[0].max()
-
+            mask = delta < 10000
+        if not mask.all():
+            mask[:] = True
         x = torch.exp(self.action_head(x)) * mask
         action_prob = x/x.sum()
         return action_prob
@@ -86,15 +88,15 @@ class PPO():
         self.counter = 0
         self.training_step = 0
         self.mode = mode
+        self.writer = SummaryWriter('./exp')
 
         self.actor_optimizer = optim.Adam(self.actor_net.parameters(), 1e-3)
         self.critic_net_optimizer = optim.Adam(self.critic_net.parameters(), 3e-3)
-        if not os.path.exists('../param'):
-            os.makedirs('../param/net_param')
-            os.makedirs('../param/img')
+        if not os.path.exists('./param'):
+            os.makedirs('./param/net_param')
+            os.makedirs('./param/img')
 
     def select_action(self, state):
-        state = state.float().unsqueeze(0).to(DEVICE)
         with torch.no_grad():
             action_prob = self.actor_net(state)
 
@@ -112,16 +114,26 @@ class PPO():
         return value.item()
 
     def save_param(self):
-        torch.save(self.actor_net.state_dict(), '../param/net_param/actor_net' + str(time.time())[:10], +'.pkl')
-        torch.save(self.critic_net.state_dict(), '../param/net_param/critic_net' + str(time.time())[:10], +'.pkl')
+        torch.save(self.actor_net.state_dict(), './param/net_param/actor_net' + str(time.time())[:10] + '.pkl')
+        torch.save(self.critic_net.state_dict(), './param/net_param/critic_net' + str(time.time())[:10] + '.pkl')
 
-    def store_transition(self, transition):
-        self.buffer.append(transition)
-        self.counter += 1
+    def store_transition(self, info):
+        state, action, action_prob, reward, dispatch = info
+        for i in range(len(state)):
+            trans = Transition(state[i], action[i], action_prob[i], reward[i], dispatch)
+            self.buffer.append(trans)
+            self.counter += 1
 
 
-    def update(self, info):
-        state, action, reward, old_action_log_prob = info
+    def update(self, i_ep):
+        state = torch.cat([t.state for t in self.buffer])
+        action = torch.tensor([t.action for t in self.buffer], dtype=torch.long).view(-1, 1)
+        reward = [t.reward for t in self.buffer]
+        # update: don't need next_state
+        #reward = torch.tensor([t.reward for t in self.buffer], dtype=torch.float).view(-1, 1)
+        #next_state = torch.tensor([t.next_state for t in self.buffer], dtype=torch.float)
+        old_action_log_prob = torch.tensor([t.a_log_prob for t in self.buffer], dtype=torch.float).view(-1, 1)
+
         R = 0
         Gt = []
         for r in reward[::-1]:
@@ -130,7 +142,10 @@ class PPO():
         Gt = torch.tensor(Gt, dtype=torch.float)
         #print("The agent is updateing....")
         for i in range(self.ppo_update_time):
-            for index in range(len(reward)):
+            for index in BatchSampler(SubsetRandomSampler(range(len(self.buffer))), self.batch_size, False):
+                if self.training_step % 1000 ==0:
+                    print('I_ep {} ，train {} times'.format(i_ep,self.training_step))
+                #with torch.no_grad():
                 Gt_index = Gt[index].view(-1, 1)
                 V = self.critic_net(state[index])
                 delta = Gt_index - V
@@ -144,6 +159,7 @@ class PPO():
 
                 # update actor network
                 action_loss = -torch.min(surr1, surr2).mean()  # MAX->MIN desent
+                self.writer.add_scalar('loss/action_loss', action_loss, global_step=self.training_step)
                 self.actor_optimizer.zero_grad()
                 action_loss.backward()
                 nn.utils.clip_grad_norm_(self.actor_net.parameters(), self.max_grad_norm)
@@ -151,10 +167,14 @@ class PPO():
 
                 #update critic network
                 value_loss = F.mse_loss(Gt_index, V)
+                self.writer.add_scalar('loss/value_loss', value_loss, global_step=self.training_step)
                 self.critic_net_optimizer.zero_grad()
                 value_loss.backward()
                 nn.utils.clip_grad_norm_(self.critic_net.parameters(), self.max_grad_norm)
                 self.critic_net_optimizer.step()
+                self.training_step += 1
+
+        del self.buffer[:] # clear experience
 
 
     
@@ -175,14 +195,18 @@ def main():
 
             # if env.dispatchs_arrived:
             if done:
+                print(env.total_reward())
                 dispatchs = env.dispatchs_arrived + env.dispatchs_selected
                 random.shuffle(dispatchs)
                 for dispatch in dispatchs:
-                    agent.update(env.finish(dispatch))
+                    agent.store_transition(env.finish(dispatch))
                     pass
+                if len(agent.buffer) >= agent.batch_size:
+                    agent.update(i_epoch)
+                    agent.save_param()
+                    agent.writer.add_scalar('liveTime/livestep', t, global_step=i_epoch)
                 break
-        torch.save(agent.actor_net, './pth/actor.pth')
-        torch.save(agent.critic_net, './pth/critic.pth')
+                
 
 if __name__ == '__main__':
     main()
