@@ -28,7 +28,7 @@ log_interval = 10
 
 GLOBAL_STATE_SIZE = 2 * (UPPERBOUND+1) * UPPERBOUND
 COMMON_STATE_SIZE = UPPERBOUND * 2 + 3
-INSTANT_STATE_SIZE = 50 + 3
+INSTANT_STATE_SIZE = UPPERBOUND + 3
 
 num_state = GLOBAL_STATE_SIZE + COMMON_STATE_SIZE + INSTANT_STATE_SIZE
 num_action = UPPERBOUND
@@ -246,7 +246,7 @@ def main():
                     pass
                 if len(agent.buffer) >= agent.batch_size:
                     agent.update(i_epoch)
-                    if (i_epoch+1) % 100 == 0:
+                    if (i_epoch+1) % 10 == 0:
                         agent.save_param()
                     agent.writer.add_scalar('liveTime/livestep', t, global_step=i_epoch)
                 break
