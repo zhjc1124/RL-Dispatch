@@ -239,6 +239,8 @@ def main():
             # if env.dispatchs_arrived:
             if done:
                 print(env.total_reward())
+                print(len(env.dispatchs_arrived))
+                print(env.evaluate())
                 dispatchs = env.dispatchs_arrived + env.dispatchs_selected # [:len(env.dispatchs_arrived)]
                 # random.shuffle(dispatchs)
                 for dispatch in dispatchs:
