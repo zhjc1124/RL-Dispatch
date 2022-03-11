@@ -12,13 +12,14 @@ random.seed(seed)
 
 TIME_CONSTRAINS = np.load('./raw_data/dis_time.npy')
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+UPPERBOUND = 50
+DISPATCH_NUMS = 500
 
 def strftime(time):
     return time.strftime('%Y-%m-%d %H:%M:%S')
 
 def station_onehot(station):
-    return F.one_hot(torch.tensor(station).long(), 118)
+    return F.one_hot(torch.tensor(station).long(), UPPERBOUND)
 
 class Dispatch:
     def __init__(self, data):
@@ -86,7 +87,7 @@ class Dispatch:
 
 class Myenv:
     def __init__(self, day=1):
-        self.station_num = 118
+        self.station_num = UPPERBOUND
         self.day = day
         self.episode = timedelta(minutes=10)                       # one episode time 10 minutes
         self.time = datetime(2021, 11, self.day, 0, 0, 0)          # current time
@@ -255,6 +256,7 @@ class Myenv:
         return self.dispatchs_waiting, False, self.time
 
     def load_dataset(self):
+
         dispatchs = pd.read_csv('./dataset/dispatchs.csv', sep=',', index_col=0)
         dispatchs = dispatchs[dispatchs['sender_station'] != dispatchs['receiver_station']]
         dispatchs['send_datetime'] = pd.to_datetime(dispatchs['send_datetime'])
@@ -276,7 +278,10 @@ class Myenv:
         dispatchs_eval['send_step'] = dispatchs_eval['send_datetime'].apply(self.time2step)
         dispatchs_eval['receive_step'] = dispatchs_eval['receive_datetime'].apply(self.time2step)
 
-        dispatchs_eval = dispatchs_eval.sample(n=2000)     # 2000, 7438
+        dispatchs_eval = dispatchs_eval[dispatchs_eval['sender_station'] < UPPERBOUND]
+        dispatchs_eval = dispatchs_eval[dispatchs_eval['receiver_station'] < UPPERBOUND]
+
+        dispatchs_eval = dispatchs_eval.sample(n=DISPATCH_NUMS)     # 2000, 7438
         # dispatchs_eval = dispatchs_eval.sample(frac=0.8) # 31312(0.8), 395(0.01, 274)
         dispatchs_eval = dispatchs_eval.sort_values(by='send_datetime')
         dispatchs_eval = dispatchs_eval.reset_index(drop=True)
@@ -292,6 +297,10 @@ class Myenv:
         subways_eval = subways_eval.reset_index(drop=True)
         subways_eval['swipe_in_step'] = subways_eval['swipe_in_time'].apply(self.time2step)
         subways_eval['swipe_out_step'] = subways_eval['swipe_out_time'].apply(self.time2step)
+
+        subways_eval = subways_eval[subways_eval['swipe_in_station'] < UPPERBOUND]
+        subways_eval = subways_eval[subways_eval['swipe_out_station'] < UPPERBOUND]
+
         subways_eval.to_csv('./dataset/subways_eval.csv', sep=',')
         self.subways_eval_bak = subways_eval
 
@@ -325,6 +334,15 @@ class Myenv:
         rewards[-1] += dispatch.reward() + n
         old_action_log_probs = dispatch.action_probs
         return states, actions, old_action_log_probs, rewards, dispatch
+
+    def deliver_rate(self):
+        arrived = 0
+        for d in self.dispatchs_arrived:
+            if d.status == 'arrived' and d.left_step >= 0:
+                arrived += 1
+        return arrived/DISPATCH_NUMS
+
+        
 
 if __name__ == '__main__':
     env = Myenv()

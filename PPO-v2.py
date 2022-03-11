@@ -1,7 +1,7 @@
 import pickle
 from collections import namedtuple
 from itertools import count
-from rl_env_v2 import Myenv
+from rl_env_v2 import Myenv, UPPERBOUND
 
 import os, time
 import numpy as np
@@ -26,8 +26,13 @@ random.seed(seed)
 log_interval = 10
 
 
-num_state = 28444
-num_action = 118
+GLOBAL_STATE_SIZE = 2 * (UPPERBOUND+1) * UPPERBOUND
+COMMON_STATE_SIZE = UPPERBOUND * 2 + 3
+INSTANT_STATE_SIZE = 50 + 3
+
+num_state = GLOBAL_STATE_SIZE + COMMON_STATE_SIZE + INSTANT_STATE_SIZE
+num_action = UPPERBOUND
+
 
 Transition = namedtuple('Transition', ['state', 'action',  'a_log_prob', 'reward', 'dispatch'])
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -37,8 +42,8 @@ DELTA = torch.load('./dataset/delta.pth')
 class Actor(nn.Module):
     def __init__(self):
         super(Actor, self).__init__()
-        self.fc1 = nn.Linear(num_state, 3000)
-        self.action_head = nn.Linear(3000, num_action)
+        self.fc1 = nn.Linear(num_state, 1000)
+        self.action_head = nn.Linear(1000, num_action)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -49,8 +54,8 @@ class Actor(nn.Module):
 class Critic(nn.Module):
     def __init__(self):
         super(Critic, self).__init__()
-        self.fc1 = nn.Linear(num_state, 3000)
-        self.state_value = nn.Linear(3000, 1)
+        self.fc1 = nn.Linear(num_state, 1000)
+        self.state_value = nn.Linear(1000, 1)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -104,11 +109,11 @@ class PPO():
     def select_action(self, state):
         with torch.no_grad():
             action_prob = self.actor_net(state)
-        o = state[:, 28084:28084+118].argmax(dim=1)
-        d = state[:, 28084+118:28084+2*118].argmax(dim=1)
+        o = state[:, GLOBAL_STATE_SIZE:GLOBAL_STATE_SIZE+num_action].argmax(dim=1)
+        d = state[:, GLOBAL_STATE_SIZE+num_action:GLOBAL_STATE_SIZE+2*num_action].argmax(dim=1)
         current_step = state[:, -1].long().detach().cpu()
         left_step = (state[:, -3]/10).long().detach().cpu()
-        delta = DELTA[current_step, o]
+        delta = DELTA[current_step, o, :UPPERBOUND]
         if (delta < left_step).any():
             mask = delta < left_step
         else:
@@ -216,7 +221,7 @@ class PPO():
     
 def main():
     agent = PPO(mode='test')
-    agent.load_param('actor_net1646920707.pkl', 'critic_net1646920707.pkl')
+    # agent.load_param('actor_net1646920707.pkl', 'critic_net1646920707.pkl')
     for i_epoch in range(1000):
         env = Myenv()
         dispatchs, done, _ = env.reset()
@@ -234,7 +239,7 @@ def main():
             # if env.dispatchs_arrived:
             if done:
                 print(env.total_reward())
-                dispatchs = env.dispatchs_arrived + env.dispatchs_selected[:len(env.dispatchs_arrived)]
+                dispatchs = env.dispatchs_arrived + env.dispatchs_selected # [:len(env.dispatchs_arrived)]
                 # random.shuffle(dispatchs)
                 for dispatch in dispatchs:
                     agent.store_transition(env.finish(dispatch))
