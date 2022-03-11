@@ -342,7 +342,6 @@ class Myenv:
         for d in self.dispatchs_arrived:
             if d.status == 'arrived' and d.left_step >= 0:
                 arrived += 1
-            total_reward += dispatch.reward()
             hop_num += len(d.hops) - 1
         profit_rate = self.total_reward()/DISPATCH_NUMS
         deliver_rate = arrived/DISPATCH_NUMS

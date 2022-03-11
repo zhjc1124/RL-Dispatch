@@ -198,7 +198,7 @@ class PPO():
                 surr2 = torch.clamp(ratio, 1 - self.clip_param, 1 + self.clip_param) * advantage
 
                 # update actor network
-                action_loss = -torch.min(surr1, surr2) # - 10*entropy  # MAX->MIN desent
+                action_loss = -torch.min(surr1, surr2) - entropy  # MAX->MIN desent
                 action_loss = action_loss.mean()
                 self.writer.add_scalar('loss/action_loss', action_loss, global_step=self.training_step)
                 self.actor_optimizer.zero_grad()
@@ -220,7 +220,7 @@ class PPO():
 
     
 def main():
-    agent = PPO(mode='test')
+    agent = PPO(mode='train')
     # agent.load_param('actor_net1646920707.pkl', 'critic_net1646920707.pkl')
     for i_epoch in range(1000):
         env = Myenv()
