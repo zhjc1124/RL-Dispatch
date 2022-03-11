@@ -3,9 +3,13 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 import torch.nn.functional as F
+import random
+
 seed = 1
 torch.manual_seed(seed)
 np.random.seed(seed)
+random.seed(seed)
+
 TIME_CONSTRAINS = np.load('./raw_data/dis_time.npy')
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -46,6 +50,10 @@ class Dispatch:
         reward = (len(self.hops) - 1) * self.hopcost
         if self.left_step > -1 and self.status == 'arrived':
             reward += self.custpay
+        # elif self.status == 'arrived':
+        #     reward += self.custpay / 2
+        # if self.status == 'selected':
+        #     reward += -10
         
         return reward
 
@@ -77,14 +85,17 @@ class Dispatch:
         
 
 class Myenv:
-    def __init__(self):
+    def __init__(self, day=1):
         self.station_num = 118
+        self.day = day
         self.episode = timedelta(minutes=10)                       # one episode time 10 minutes
-        self.time = None                                           # current time
+        self.time = datetime(2021, 11, self.day, 0, 0, 0)          # current time
         self.dispatchs = None                                      # total dispatchs
         self.subways = None                                        # total subways
-        self.dispatchs_eval = None                                 # dispatchs per day
-        self.subways_eval = None                                   # subways per day
+
+        self.dispatchs_eval_bak = None
+        self.subways_eval_bak = None
+
         self.load_dataset()
 
         self.dispatchs_waiting = []
@@ -183,12 +194,27 @@ class Myenv:
         self.infos.append(info)
         return self.dispatchs_waiting, self.step_nums == 143, self.time
     
-    def reset(self, day=1):
+    def reset(self):
         '''
         reset the environment.
         return states and time
         '''
-        
+        seed = 1
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        # random.seed(seed)
+
+        self.subways_eval = self.subways_eval_bak.copy(deep=True)
+        self.dispatchs_eval = self.dispatchs_eval_bak.copy(deep=True)
+
+        self.dispatchs_waiting = []
+        self.dispatchs_selected = []
+        self.dispatchs_delivering = []
+        self.dispatchs_arrived = []
+        self.infos = []
+
+        self.time = datetime(2021, 11, self.day, 0, 0, 0)
+
         self.subways_entering = None
         self.subways_commuting = pd.DataFrame(None,columns=['card_id','swipe_in_time','swipe_in_station','swipe_out_time','swipe_out_station'])
         self.step_nums = 0
@@ -206,34 +232,6 @@ class Myenv:
             'time': self.time,
             'reward': 0
         }
-
-        self.time = datetime(2021, 11, day, 0, 0, 0)
-
-        self.dispatchs_eval = self.dispatchs.copy(deep=True)
-        self.dispatchs_eval = self.dispatchs_eval[self.dispatchs_eval['send_datetime'].apply(lambda x: x.day) == day]
-        self.dispatchs_eval['send_step'] = self.dispatchs_eval['send_datetime'].apply(self.time2step)
-        self.dispatchs_eval['receive_step'] = self.dispatchs_eval['receive_datetime'].apply(self.time2step)
-
-        # self.dispatchs_eval = self.dispatchs_eval.sample(n=10)
-        self.dispatchs_eval = self.dispatchs_eval.sample(frac=0.8) # 31312
-        self.dispatchs_eval = self.dispatchs_eval.sort_values(by='send_datetime')
-        self.dispatchs_eval = self.dispatchs_eval.reset_index(drop=True)
-
-        self.dispatchs_eval.to_csv('./dataset/dispatchs_eval.csv', sep=',')
-
-        subways_eval = self.subways.copy(deep=True)
-        subways_eval['swipe_in_time'] = pd.to_datetime(f'2021-11-{day:02d} ' + subways_eval['swipe_in_time'])
-        subways_eval['swipe_out_time'] = pd.to_datetime(f'2021-11-{day:02d} ' + subways_eval['swipe_out_time'])
-        subways_eval = subways_eval[subways_eval['swipe_in_time']<subways_eval['swipe_out_time']]
-        subways_eval = subways_eval.sort_values(by='swipe_in_time')
-        subways_eval = subways_eval.reset_index(drop=True)
-        subways_eval['swipe_in_step'] = subways_eval['swipe_in_time'].apply(self.time2step)
-        subways_eval['swipe_out_step'] = subways_eval['swipe_out_time'].apply(self.time2step)
-        subways_eval.to_csv('./dataset/subways_eval.csv', sep=',')
-        self.subways_eval = subways_eval
-
-        self.step_nums = 0
-        self.state['time'] = self.time
 
         dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_step']+1 <= self.step_nums]
         self.dispatchs_eval = self.dispatchs_eval.drop(dispatchs_handling.index)
@@ -266,21 +264,40 @@ class Myenv:
         dispatchs = dispatchs.sort_values(by='send_datetime')
         dispatchs = dispatchs.reset_index(drop=True)
 
-        self.dispatchs = dispatchs
-        dispatchs.to_csv('./dataset/dispatchs_sorted.csv', sep=',')
+        # dispatchs.to_csv('./dataset/dispatchs_sorted.csv', sep=',')
 
         subways = pd.read_csv('./dataset/subways.csv', sep=',', index_col=0)
         subways = subways[subways['swipe_in_station']!=subways['swipe_out_station']]
         subways = subways.sort_values(by='swipe_in_time')
-        subways = subways.reset_index(drop=True)        
-        self.subways = subways
+        subways = subways.reset_index(drop=True)
+
+        dispatchs_eval = dispatchs.copy(deep=True)
+        dispatchs_eval = dispatchs_eval[dispatchs_eval['send_datetime'].apply(lambda x: x.day) == self.day]
+        dispatchs_eval['send_step'] = dispatchs_eval['send_datetime'].apply(self.time2step)
+        dispatchs_eval['receive_step'] = dispatchs_eval['receive_datetime'].apply(self.time2step)
+
+        dispatchs_eval = dispatchs_eval.sample(n=2000)     # 2000, 7438
+        # dispatchs_eval = dispatchs_eval.sample(frac=0.8) # 31312(0.8), 395(0.01, 274)
+        dispatchs_eval = dispatchs_eval.sort_values(by='send_datetime')
+        dispatchs_eval = dispatchs_eval.reset_index(drop=True)
+
+        dispatchs_eval.to_csv('./dataset/dispatchs_eval.csv', sep=',')
+        self.dispatchs_eval_bak = dispatchs_eval
+
+        subways_eval = subways.copy(deep=True)
+        subways_eval['swipe_in_time'] = pd.to_datetime(f'2021-11-{self.day:02d} ' + subways_eval['swipe_in_time'])
+        subways_eval['swipe_out_time'] = pd.to_datetime(f'2021-11-{self.day:02d} ' + subways_eval['swipe_out_time'])
+        subways_eval = subways_eval[subways_eval['swipe_in_time']<subways_eval['swipe_out_time']]
+        subways_eval = subways_eval.sort_values(by='swipe_in_time')
+        subways_eval = subways_eval.reset_index(drop=True)
+        subways_eval['swipe_in_step'] = subways_eval['swipe_in_time'].apply(self.time2step)
+        subways_eval['swipe_out_step'] = subways_eval['swipe_out_time'].apply(self.time2step)
+        subways_eval.to_csv('./dataset/subways_eval.csv', sep=',')
+        self.subways_eval_bak = subways_eval
 
     def total_reward(self):
         total_reward = 0
-        for dispatch in self.dispatchs_arrived:
-            total_reward += dispatch.reward()
-        for dispatch in self.dispatchs_selected:
-            # dispatch.hops.pop()
+        for dispatch in self.dispatchs_arrived + self.dispatchs_selected:
             total_reward += dispatch.reward()
         return total_reward
     
@@ -288,7 +305,7 @@ class Myenv:
         global_state = self.infos[-1]
         private_state = dispatch.get_state()
         state = torch.cat((global_state.flatten(), private_state))
-        state = state.float().unsqueeze(0).to(DEVICE)
+        state = state.float().unsqueeze(0)
         return state
 
     def finish(self, dispatch):
@@ -299,11 +316,13 @@ class Myenv:
             global_state = self.infos[dispatch.action_steps[i]]
             private_state = torch.cat((dispatch.commons, dispatch.states[i]))
             state = torch.cat((global_state.flatten(), private_state))
-            state = state.float().unsqueeze(0).to(DEVICE)
+            state = state.float().unsqueeze(0)
             states.append(state)
 
-        rewards = [0] * n 
-        rewards[-1] = dispatch.reward()
+        # rewards = [0] * n
+        # rewards[-1] = dispatch.reward()
+        rewards = [-1] * n
+        rewards[-1] += dispatch.reward() + n
         old_action_log_probs = dispatch.action_probs
         return states, actions, old_action_log_probs, rewards, dispatch
 
@@ -321,3 +340,16 @@ if __name__ == '__main__':
         if done:
             print(env.total_reward())
             break
+
+    # dispatchs, done, _ = env.reset()
+    # while True:
+    #     actions = []
+    #     for dispatch in dispatchs:
+    #         # receiver_station = int(env.get_state(dispatch)[28084+118:28084+2*118].argmax())
+    #         # assert(receiver_station == dispatch.receiver_station)
+    #         # actions.append(receiver_station)
+    #         actions.append(dispatch.receiver_station)
+    #     dispatchs, done, _ = env.step(actions)
+    #     if done:
+    #         print(env.total_reward())
+    #         break
