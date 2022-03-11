@@ -335,12 +335,19 @@ class Myenv:
         old_action_log_probs = dispatch.action_probs
         return states, actions, old_action_log_probs, rewards, dispatch
 
-    def deliver_rate(self):
+    def evaluate(self):
+        total_reward = 0
         arrived = 0
+        hop_num = 0
         for d in self.dispatchs_arrived:
             if d.status == 'arrived' and d.left_step >= 0:
                 arrived += 1
-        return arrived/DISPATCH_NUMS
+            total_reward += dispatch.reward()
+            hop_num += len(d.hops) - 1
+        profit_rate = self.total_reward()/DISPATCH_NUMS
+        deliver_rate = arrived/DISPATCH_NUMS
+        average_hop = hop_num/len(self.dispatchs_arrived)
+        return profit_rate, deliver_rate, average_hop
 
         
 
@@ -357,6 +364,8 @@ if __name__ == '__main__':
         dispatchs, done, _ = env.step(actions)
         if done:
             print(env.total_reward())
+            print(len(env.dispatchs_arrived))
+            print(env.evaluate())
             break
 
     # dispatchs, done, _ = env.reset()

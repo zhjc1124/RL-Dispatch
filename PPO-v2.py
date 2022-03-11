@@ -198,7 +198,7 @@ class PPO():
                 surr2 = torch.clamp(ratio, 1 - self.clip_param, 1 + self.clip_param) * advantage
 
                 # update actor network
-                action_loss = -torch.min(surr1, surr2) - 10*entropy  # MAX->MIN desent
+                action_loss = -torch.min(surr1, surr2) # - 10*entropy  # MAX->MIN desent
                 action_loss = action_loss.mean()
                 self.writer.add_scalar('loss/action_loss', action_loss, global_step=self.training_step)
                 self.actor_optimizer.zero_grad()
