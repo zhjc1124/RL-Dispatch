@@ -278,7 +278,7 @@ def test(params_file, i_epoch):
             print(profit)
             print(len(env.dispatchs_arrived))
             print(env.evaluate())
-            pass
+            break
 
 if __name__ == '__main__':
     main()
