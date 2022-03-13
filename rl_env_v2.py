@@ -45,18 +45,13 @@ class Dispatch:
         self.actions = []
         self.action_probs = []
         self.action_steps = []
-    
+        self.rewards = []
 
-    def reward(self):
-        reward = (len(self.hops) - 1) * self.hopcost
+    def profit(self):
+        profit = (len(self.hops) - 1) * self.hopcost
         if self.left_step > -1 and self.status == 'arrived':
-            reward += self.custpay
-        # elif self.status == 'arrived':
-        #     reward += self.custpay / 2
-        # if self.status == 'selected':
-        #     reward += -10
-        
-        return reward
+            profit += self.custpay        
+        return profit
 
     def deliver(self, chosed_subway):
         self.subways.append(chosed_subway)
@@ -81,9 +76,12 @@ class Dispatch:
         else:
             self.states = torch.cat((self.states, state))
 
+    def record_rewards(self):
+        pass
+
     def get_state(self):
         return torch.cat((self.commons, self.states[-1]))
-        
+    
 
 class Myenv:
     def __init__(self, day=1):
@@ -114,9 +112,12 @@ class Myenv:
         if action_probs is None:
             action_probs = [1] * len(actions)
         for i in range(len(actions)):
-            self.dispatchs_waiting[i].step(actions[i], action_probs[i], self.step_nums)
-            self.dispatchs_waiting[i].status = 'selected'
-            self.dispatchs_selected.append(self.dispatchs_waiting[i])
+            if actions[i] == self.dispatchs_waiting[i].hops[-1]:
+                pass
+            else:
+                self.dispatchs_waiting[i].step(actions[i], action_probs[i], self.step_nums)
+                self.dispatchs_waiting[i].status = 'selected'
+                self.dispatchs_selected.append(self.dispatchs_waiting[i])
         self.dispatchs_waiting = []
 
         selected = []
@@ -155,6 +156,7 @@ class Myenv:
             dispatch.update()
             if dispatch.arrive_step+1 == self.step_nums:
                 self.state['packages'][1][dispatch.hops[-2], dispatch.hops[-1]] -= 1
+                dispatch.record_rewards()
                 if dispatch.hops[-1] == dispatch.receiver_station:
                     dispatch.status = 'arrived'
                     self.dispatchs_arrived.append(dispatch)
@@ -173,8 +175,12 @@ class Myenv:
         for index, row in arrived.iterrows():
             self.state['passengers'][1][row['swipe_in_station'], row['swipe_out_station']] -= 1
 
+        if self.step_nums == 143:
+            return self.dispatchs_waiting, self.step_nums == 143, self.time
+
         dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_step']+1 <= self.step_nums]
         self.dispatchs_eval = self.dispatchs_eval.drop(dispatchs_handling.index)
+
 
         for index, row in dispatchs_handling.iterrows():
             dispatch = Dispatch(row)
@@ -304,11 +310,11 @@ class Myenv:
         subways_eval.to_csv('./dataset/subways_eval.csv', sep=',')
         self.subways_eval_bak = subways_eval
 
-    def total_reward(self):
-        total_reward = 0
-        for dispatch in self.dispatchs_arrived + self.dispatchs_selected:
-            total_reward += dispatch.reward()
-        return total_reward
+    def total_profit(self):
+        total_profit = 0
+        for dispatch in self.dispatchs_arrived + self.dispatchs_selected + self.dispatchs_waiting:
+            total_profit += dispatch.profit()
+        return total_profit
     
     def get_state(self, dispatch):
         global_state = self.infos[-1]
@@ -330,20 +336,18 @@ class Myenv:
 
         # rewards = [0] * n
         # rewards[-1] = dispatch.reward()
-        rewards = [-1] * n
-        rewards[-1] += dispatch.reward() + n
+        rewards = dispatch.rewards
         old_action_log_probs = dispatch.action_probs
         return states, actions, old_action_log_probs, rewards, dispatch
 
     def evaluate(self):
-        total_reward = 0
         arrived = 0
         hop_num = 0
         for d in self.dispatchs_arrived:
             if d.status == 'arrived' and d.left_step >= 0:
                 arrived += 1
             hop_num += len(d.hops) - 1
-        profit_rate = self.total_reward()/DISPATCH_NUMS
+        profit_rate = self.total_profit()/DISPATCH_NUMS
         deliver_rate = arrived/DISPATCH_NUMS
         average_hop = hop_num/len(self.dispatchs_arrived)
         return profit_rate, deliver_rate, average_hop
@@ -356,9 +360,6 @@ if __name__ == '__main__':
     while True:
         actions = []
         for dispatch in dispatchs:
-            # receiver_station = int(env.get_state(dispatch)[28084+118:28084+2*118].argmax())
-            # assert(receiver_station == dispatch.receiver_station)
-            # actions.append(receiver_station)
             actions.append(dispatch.receiver_station)
         dispatchs, done, _ = env.step(actions)
         if done:
@@ -366,16 +367,3 @@ if __name__ == '__main__':
             print(len(env.dispatchs_arrived))
             print(env.evaluate())
             break
-
-    # dispatchs, done, _ = env.reset()
-    # while True:
-    #     actions = []
-    #     for dispatch in dispatchs:
-    #         # receiver_station = int(env.get_state(dispatch)[28084+118:28084+2*118].argmax())
-    #         # assert(receiver_station == dispatch.receiver_station)
-    #         # actions.append(receiver_station)
-    #         actions.append(dispatch.receiver_station)
-    #     dispatchs, done, _ = env.step(actions)
-    #     if done:
-    #         print(env.total_reward())
-    #         break

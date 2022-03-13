@@ -238,10 +238,10 @@ def main():
 
             # if env.dispatchs_arrived:
             if done:
-                print(env.total_reward())
+                print(env.total_profit())
                 print(len(env.dispatchs_arrived))
                 print(env.evaluate())
-                dispatchs = env.dispatchs_arrived + env.dispatchs_selected # [:len(env.dispatchs_arrived)]
+                dispatchs = env.dispatchs_arrived + env.dispatchs_selected + env.dispatchs_waiting:
                 # random.shuffle(dispatchs)
                 for dispatch in dispatchs:
                     agent.store_transition(env.finish(dispatch))
