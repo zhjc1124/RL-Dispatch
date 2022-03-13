@@ -225,6 +225,7 @@ class PPO():
 
 def main():
     torch.cuda.set_device(1)
+    print('begin')
     agent = PPO(mode='train')
     # agent.load_param('actor_net1646920707.pkl', 'critic_net1646920707.pkl')
     for i_epoch in range(100):
