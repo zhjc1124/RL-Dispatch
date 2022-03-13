@@ -10,10 +10,11 @@ torch.manual_seed(seed)
 np.random.seed(seed)
 random.seed(seed)
 
+station_distances = np.load('./raw_data/station_distances.npy')
 TIME_CONSTRAINS = np.load('./raw_data/dis_time.npy')
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-UPPERBOUND = 50
-DISPATCH_NUMS = 500
+UPPERBOUND = 118
+DISPATCH_NUMS = 3000
 
 def strftime(time):
     return time.strftime('%Y-%m-%d %H:%M:%S')
@@ -30,6 +31,7 @@ class Dispatch:
         # self.receive_step = data['receive_step']
         self.arrive_step = 0
         # self.current_station = data['sender_station']
+        assert(self.sender_station!=self.receiver_station)
         self.time_constrain = TIME_CONSTRAINS[self.sender_station, self.receiver_station]
         self.left_step = self.time_constrain * 6     # 1 step = 10 min
         self.custpay = 5
@@ -76,8 +78,37 @@ class Dispatch:
         else:
             self.states = torch.cat((self.states, state))
 
+    # def record_rewards(self):
+    #     reward = -1                                        # 移动惩罚
+    #     reward += self.left_step * 0.1                     # 剩余时间惩罚
+
+    #     if self.left_step > -1 and self.hops[-1] == self.receiver_station:
+    #         reward += 100                                  # 到达奖励
+    #         return reward
+
+    #     current_station = self.hops[-1]
+    #     receiver_station = self.receiver_station
+    #     distance = station_distances[current_station, receiver_station]
+    #     reward += -distance * 0.1                           # 距离惩罚
+    #     return reward 
+    
     def record_rewards(self):
-        pass
+        reward = 0                                         # 移动惩罚
+        reward += self.left_step * 0.1                       # 剩余时间惩罚
+
+        if self.left_step > -1 and self.hops[-1] == self.receiver_station:
+            reward += 100 - (len(self.hops) - 1)            # 到达奖励
+
+        if self.status == 'selected':
+            current_station = self.hops[-2]
+        else:
+            current_station = self.hops[-1]
+        receiver_station = self.receiver_station
+        if current_station != receiver_station:
+            distance = station_distances[current_station, receiver_station]
+            reward += -distance * 0.1                              # 距离惩罚
+        self.rewards.append(reward)
+        return reward 
 
     def get_state(self):
         return torch.cat((self.commons, self.states[-1]))
@@ -336,6 +367,8 @@ class Myenv:
 
         # rewards = [0] * n
         # rewards[-1] = dispatch.reward()
+        if dispatch.status == 'selected':
+            dispatch.record_rewards()
         rewards = dispatch.rewards
         old_action_log_probs = dispatch.action_probs
         return states, actions, old_action_log_probs, rewards, dispatch
@@ -363,7 +396,7 @@ if __name__ == '__main__':
             actions.append(dispatch.receiver_station)
         dispatchs, done, _ = env.step(actions)
         if done:
-            print(env.total_reward())
+            print(env.total_profit())
             print(len(env.dispatchs_arrived))
             print(env.evaluate())
             break

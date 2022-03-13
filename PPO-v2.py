@@ -17,7 +17,7 @@ from tensorboardX import SummaryWriter
 import random
 
 # Parameters
-gamma = 0.99
+gamma = 0.9
 render = False
 seed = 1
 torch.manual_seed(seed)
@@ -146,12 +146,16 @@ class PPO():
         return value.item()
 
     def save_param(self):
-        torch.save(self.actor_net.state_dict(), './param/net_param/actor_net' + str(time.time())[:10] + '.pkl')
-        torch.save(self.critic_net.state_dict(), './param/net_param/critic_net' + str(time.time())[:10] + '.pkl')
+        actor_file = './param/net_param/actor_net' + str(time.time())[:10] + '.pkl'
+        critic_file = './param/net_param/critic_net' + str(time.time())[:10] + '.pkl'
+        torch.save(self.actor_net.state_dict(), actor_file)
+        torch.save(self.critic_net.state_dict(), critic_file)
+        return actor_file, critic_file
 
-    def load_param(self, path1, path2):
-        self.actor_net.load_state_dict(torch.load('./param/net_param/' + path1))
-        self.critic_net.load_state_dict(torch.load('./param/net_param/' + path2))
+    def load_param(self, params_file):
+        actor_file,critic_file = params_file
+        self.actor_net.load_state_dict(torch.load(actor_file))
+        self.critic_net.load_state_dict(torch.load(critic_file))
 
     def store_transition(self, info):
         state, action, action_prob, reward, dispatch = info
@@ -218,11 +222,12 @@ class PPO():
         del self.buffer[:] # clear experience
 
 
-    
+
 def main():
+    torch.cuda.set_device(1)
     agent = PPO(mode='train')
     # agent.load_param('actor_net1646920707.pkl', 'critic_net1646920707.pkl')
-    for i_epoch in range(1000):
+    for i_epoch in range(100):
         env = Myenv()
         dispatchs, done, _ = env.reset()
         for t in count():  
@@ -238,10 +243,7 @@ def main():
 
             # if env.dispatchs_arrived:
             if done:
-                print(env.total_profit())
-                print(len(env.dispatchs_arrived))
-                print(env.evaluate())
-                dispatchs = env.dispatchs_arrived + env.dispatchs_selected + env.dispatchs_waiting:
+                dispatchs = env.dispatchs_arrived + env.dispatchs_selected + env.dispatchs_waiting
                 # random.shuffle(dispatchs)
                 for dispatch in dispatchs:
                     agent.store_transition(env.finish(dispatch))
@@ -249,10 +251,33 @@ def main():
                 if len(agent.buffer) >= agent.batch_size:
                     agent.update(i_epoch)
                     if (i_epoch+1) % 10 == 0:
-                        agent.save_param()
+                        params_file = agent.save_param()
+                        test(params_file, i_epoch)
                     agent.writer.add_scalar('liveTime/livestep', t, global_step=i_epoch)
                 break
                 
+def test(params_file, i_epoch):
+    agent = PPO(mode='test')
+    agent.load_param(params_file)
+    env = Myenv()
+    dispatchs, done, _ = env.reset()
+    for t in count():  
+        actions = []
+        action_probs = []
+        for dispatch in dispatchs:
+            state = env.get_state(dispatch).to(DEVICE)
+            action, action_prob = agent.select_action(state)
+            actions.append(action)
+            action_probs.append(action_prob)
+            pass
+        dispatchs, done, _ = env.step(actions, action_probs)
+        if done:
+            profit = env.total_profit()
+            agent.writer.add_scalar('reward/profit', t, global_step=i_epoch)
+            print(profit)
+            print(len(env.dispatchs_arrived))
+            print(env.evaluate())
+            pass
 
 if __name__ == '__main__':
     main()
