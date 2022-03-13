@@ -273,7 +273,7 @@ def test(params_file, i_epoch):
         dispatchs, done, _ = env.step(actions, action_probs)
         if done:
             profit = env.total_profit()
-            agent.writer.add_scalar('reward/profit', t, global_step=i_epoch)
+            agent.writer.add_scalar('loss/profit', t, global_step=i_epoch)
             print(profit)
             print(len(env.dispatchs_arrived))
             print(env.evaluate())
