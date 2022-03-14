@@ -1,0 +1,810 @@
+nohup: ignoring input
+begin train
+I_ep 0 ，train 0 times
+I_ep 1 ，train 1000 times
+I_ep 2 ，train 2000 times
+I_ep 4 ，train 3000 times
+I_ep 5 ，train 4000 times
+I_ep 7 ，train 5000 times
+I_ep 8 ，train 6000 times
+I_ep 10 ，train 7000 times
+I_ep 11 ，train 8000 times
+I_ep 13 ，train 9000 times
+I_ep 14 ，train 10000 times
+I_ep 16 ，train 11000 times
+I_ep 17 ，train 12000 times
+I_ep 19 ，train 13000 times
+begin test
+3570
+2698
+(1.19, 0.5126666666666667, 1.4069681245366938)
+I_ep 20 ，train 14000 times
+I_ep 22 ，train 15000 times
+I_ep 23 ，train 16000 times
+I_ep 25 ，train 17000 times
+I_ep 26 ，train 18000 times
+I_ep 28 ，train 19000 times
+I_ep 29 ，train 20000 times
+I_ep 31 ，train 21000 times
+I_ep 32 ，train 22000 times
+I_ep 34 ，train 23000 times
+I_ep 35 ，train 24000 times
+I_ep 37 ，train 25000 times
+I_ep 38 ，train 26000 times
+begin test
+3584
+2723
+(1.1946666666666668, 0.5183333333333333, 1.414983474109438)
+I_ep 40 ，train 27000 times
+I_ep 41 ，train 28000 times
+I_ep 43 ，train 29000 times
+I_ep 44 ，train 30000 times
+I_ep 46 ，train 31000 times
+I_ep 47 ，train 32000 times
+I_ep 49 ，train 33000 times
+I_ep 50 ，train 34000 times
+I_ep 51 ，train 35000 times
+I_ep 53 ，train 36000 times
+I_ep 54 ，train 37000 times
+I_ep 56 ，train 38000 times
+I_ep 57 ，train 39000 times
+I_ep 59 ，train 40000 times
+begin test
+3618
+2731
+(1.206, 0.5176666666666667, 1.4145001830831196)
+I_ep 60 ，train 41000 times
+I_ep 62 ，train 42000 times
+I_ep 63 ，train 43000 times
+I_ep 65 ，train 44000 times
+I_ep 66 ，train 45000 times
+I_ep 68 ，train 46000 times
+I_ep 69 ，train 47000 times
+I_ep 71 ，train 48000 times
+I_ep 72 ，train 49000 times
+I_ep 74 ，train 50000 times
+I_ep 75 ，train 51000 times
+I_ep 77 ，train 52000 times
+I_ep 78 ，train 53000 times
+begin test
+3624
+2686
+(1.208, 0.5166666666666667, 1.4162323157110945)
+I_ep 80 ，train 54000 times
+I_ep 81 ，train 55000 times
+I_ep 83 ，train 56000 times
+I_ep 84 ，train 57000 times
+I_ep 86 ，train 58000 times
+I_ep 87 ，train 59000 times
+I_ep 89 ，train 60000 times
+I_ep 90 ，train 61000 times
+I_ep 92 ，train 62000 times
+I_ep 93 ，train 63000 times
+I_ep 95 ，train 64000 times
+I_ep 96 ，train 65000 times
+I_ep 98 ，train 66000 times
+I_ep 99 ，train 67000 times
+begin test
+3574
+2688
+(1.1913333333333334, 0.5143333333333333, 1.4222470238095237)
+I_ep 101 ，train 68000 times
+I_ep 102 ，train 69000 times
+I_ep 104 ，train 70000 times
+I_ep 105 ，train 71000 times
+I_ep 107 ，train 72000 times
+I_ep 108 ，train 73000 times
+I_ep 110 ，train 74000 times
+I_ep 111 ，train 75000 times
+I_ep 113 ，train 76000 times
+I_ep 114 ，train 77000 times
+I_ep 116 ，train 78000 times
+I_ep 117 ，train 79000 times
+I_ep 119 ，train 80000 times
+begin test
+3811
+2710
+(1.2703333333333333, 0.5283333333333333, 1.4095940959409594)
+I_ep 120 ，train 81000 times
+I_ep 122 ，train 82000 times
+I_ep 123 ，train 83000 times
+I_ep 125 ，train 84000 times
+I_ep 126 ，train 85000 times
+I_ep 128 ，train 86000 times
+I_ep 129 ，train 87000 times
+I_ep 131 ，train 88000 times
+I_ep 132 ，train 89000 times
+I_ep 134 ，train 90000 times
+I_ep 135 ，train 91000 times
+I_ep 137 ，train 92000 times
+I_ep 138 ，train 93000 times
+begin test
+3617
+2701
+(1.2056666666666667, 0.516, 1.4165124028137728)
+I_ep 140 ，train 94000 times
+I_ep 141 ，train 95000 times
+I_ep 143 ，train 96000 times
+I_ep 144 ，train 97000 times
+I_ep 146 ，train 98000 times
+I_ep 147 ，train 99000 times
+I_ep 149 ，train 100000 times
+I_ep 150 ，train 101000 times
+I_ep 152 ，train 102000 times
+I_ep 153 ，train 103000 times
+I_ep 155 ，train 104000 times
+I_ep 156 ，train 105000 times
+I_ep 158 ，train 106000 times
+I_ep 159 ，train 107000 times
+begin test
+3607
+2720
+(1.2023333333333333, 0.5176666666666667, 1.4128676470588235)
+I_ep 161 ，train 108000 times
+I_ep 162 ，train 109000 times
+I_ep 164 ，train 110000 times
+I_ep 165 ，train 111000 times
+I_ep 167 ，train 112000 times
+I_ep 168 ，train 113000 times
+I_ep 170 ，train 114000 times
+I_ep 171 ，train 115000 times
+I_ep 173 ，train 116000 times
+I_ep 174 ，train 117000 times
+I_ep 176 ，train 118000 times
+I_ep 177 ，train 119000 times
+I_ep 179 ，train 120000 times
+begin test
+3716
+2704
+(1.2386666666666666, 0.5233333333333333, 1.41198224852071)
+I_ep 180 ，train 121000 times
+I_ep 182 ，train 122000 times
+I_ep 183 ，train 123000 times
+I_ep 185 ，train 124000 times
+I_ep 186 ，train 125000 times
+I_ep 188 ，train 126000 times
+I_ep 189 ，train 127000 times
+I_ep 191 ，train 128000 times
+I_ep 192 ，train 129000 times
+I_ep 194 ，train 130000 times
+I_ep 195 ，train 131000 times
+I_ep 197 ，train 132000 times
+I_ep 198 ，train 133000 times
+begin test
+3554
+2713
+(1.1846666666666668, 0.5156666666666667, 1.4257279764098785)
+I_ep 200 ，train 134000 times
+I_ep 201 ，train 135000 times
+I_ep 203 ，train 136000 times
+I_ep 205 ，train 137000 times
+I_ep 206 ，train 138000 times
+I_ep 208 ，train 139000 times
+I_ep 209 ，train 140000 times
+I_ep 211 ，train 141000 times
+I_ep 212 ，train 142000 times
+I_ep 214 ，train 143000 times
+I_ep 215 ，train 144000 times
+I_ep 217 ，train 145000 times
+I_ep 218 ，train 146000 times
+begin test
+3756
+2722
+(1.252, 0.528, 1.4224834680382072)
+I_ep 220 ，train 147000 times
+I_ep 221 ，train 148000 times
+I_ep 223 ，train 149000 times
+I_ep 224 ，train 150000 times
+I_ep 226 ，train 151000 times
+I_ep 227 ，train 152000 times
+I_ep 229 ，train 153000 times
+I_ep 230 ，train 154000 times
+I_ep 232 ，train 155000 times
+I_ep 233 ，train 156000 times
+I_ep 235 ，train 157000 times
+I_ep 236 ，train 158000 times
+I_ep 238 ，train 159000 times
+I_ep 239 ，train 160000 times
+begin test
+3623
+2716
+(1.2076666666666667, 0.5196666666666667, 1.4263622974963182)
+I_ep 241 ，train 161000 times
+I_ep 242 ，train 162000 times
+I_ep 244 ，train 163000 times
+I_ep 245 ，train 164000 times
+I_ep 247 ，train 165000 times
+I_ep 248 ，train 166000 times
+I_ep 250 ，train 167000 times
+I_ep 251 ，train 168000 times
+I_ep 253 ，train 169000 times
+I_ep 254 ，train 170000 times
+I_ep 256 ，train 171000 times
+I_ep 257 ，train 172000 times
+I_ep 259 ，train 173000 times
+begin test
+3742
+2687
+(1.2473333333333334, 0.5253333333333333, 1.4157052474879048)
+I_ep 261 ，train 174000 times
+I_ep 262 ，train 175000 times
+I_ep 264 ，train 176000 times
+I_ep 265 ，train 177000 times
+I_ep 267 ，train 178000 times
+I_ep 268 ，train 179000 times
+I_ep 270 ，train 180000 times
+I_ep 271 ，train 181000 times
+I_ep 273 ，train 182000 times
+I_ep 274 ，train 183000 times
+I_ep 276 ，train 184000 times
+I_ep 277 ，train 185000 times
+I_ep 279 ，train 186000 times
+begin test
+3483
+2681
+(1.161, 0.5083333333333333, 1.4185005594927267)
+I_ep 280 ，train 187000 times
+I_ep 282 ，train 188000 times
+I_ep 283 ，train 189000 times
+I_ep 285 ，train 190000 times
+I_ep 286 ，train 191000 times
+I_ep 288 ，train 192000 times
+I_ep 289 ，train 193000 times
+I_ep 291 ，train 194000 times
+I_ep 292 ，train 195000 times
+I_ep 294 ，train 196000 times
+I_ep 295 ，train 197000 times
+I_ep 297 ，train 198000 times
+I_ep 298 ，train 199000 times
+begin test
+3614
+2685
+(1.2046666666666668, 0.5156666666666667, 1.4104283054003723)
+I_ep 300 ，train 200000 times
+I_ep 301 ，train 201000 times
+I_ep 303 ，train 202000 times
+I_ep 304 ，train 203000 times
+I_ep 306 ，train 204000 times
+I_ep 307 ，train 205000 times
+I_ep 309 ，train 206000 times
+I_ep 310 ，train 207000 times
+I_ep 312 ，train 208000 times
+I_ep 313 ，train 209000 times
+I_ep 315 ，train 210000 times
+I_ep 316 ，train 211000 times
+I_ep 318 ，train 212000 times
+I_ep 319 ，train 213000 times
+begin test
+3648
+2690
+(1.216, 0.5193333333333333, 1.417100371747212)
+I_ep 321 ，train 214000 times
+I_ep 322 ，train 215000 times
+I_ep 324 ，train 216000 times
+I_ep 325 ，train 217000 times
+I_ep 327 ，train 218000 times
+I_ep 329 ，train 219000 times
+I_ep 330 ，train 220000 times
+I_ep 332 ，train 221000 times
+I_ep 333 ，train 222000 times
+I_ep 335 ，train 223000 times
+I_ep 336 ，train 224000 times
+I_ep 338 ，train 225000 times
+I_ep 339 ，train 226000 times
+begin test
+3677
+2697
+(1.2256666666666667, 0.5193333333333333, 1.4115684093437153)
+I_ep 341 ，train 227000 times
+I_ep 342 ，train 228000 times
+I_ep 344 ，train 229000 times
+I_ep 345 ，train 230000 times
+I_ep 347 ，train 231000 times
+I_ep 348 ，train 232000 times
+I_ep 350 ，train 233000 times
+I_ep 351 ，train 234000 times
+I_ep 353 ，train 235000 times
+I_ep 354 ，train 236000 times
+I_ep 356 ，train 237000 times
+I_ep 357 ，train 238000 times
+I_ep 359 ，train 239000 times
+begin test
+3560
+2695
+(1.1866666666666668, 0.5096666666666667, 1.3992578849721706)
+I_ep 360 ，train 240000 times
+I_ep 362 ，train 241000 times
+I_ep 363 ，train 242000 times
+I_ep 365 ，train 243000 times
+I_ep 366 ，train 244000 times
+I_ep 368 ，train 245000 times
+I_ep 369 ，train 246000 times
+I_ep 371 ，train 247000 times
+I_ep 372 ，train 248000 times
+I_ep 374 ，train 249000 times
+I_ep 375 ，train 250000 times
+I_ep 377 ，train 251000 times
+I_ep 378 ，train 252000 times
+begin test
+3765
+2728
+(1.255, 0.523, 1.407991202346041)
+I_ep 380 ，train 253000 times
+I_ep 382 ，train 254000 times
+I_ep 383 ，train 255000 times
+I_ep 385 ，train 256000 times
+I_ep 386 ，train 257000 times
+I_ep 388 ，train 258000 times
+I_ep 389 ，train 259000 times
+I_ep 391 ，train 260000 times
+I_ep 392 ，train 261000 times
+I_ep 394 ，train 262000 times
+I_ep 395 ，train 263000 times
+I_ep 397 ，train 264000 times
+I_ep 398 ，train 265000 times
+begin test
+3787
+2721
+(1.2623333333333333, 0.5293333333333333, 1.422638735758912)
+I_ep 400 ，train 266000 times
+I_ep 401 ，train 267000 times
+I_ep 403 ，train 268000 times
+I_ep 405 ，train 269000 times
+I_ep 406 ，train 270000 times
+I_ep 408 ，train 271000 times
+I_ep 409 ，train 272000 times
+I_ep 411 ，train 273000 times
+I_ep 412 ，train 274000 times
+I_ep 414 ，train 275000 times
+I_ep 415 ，train 276000 times
+I_ep 417 ，train 277000 times
+I_ep 418 ，train 278000 times
+begin test
+3593
+2674
+(1.1976666666666667, 0.514, 1.4210919970082274)
+I_ep 420 ，train 279000 times
+I_ep 421 ，train 280000 times
+I_ep 423 ，train 281000 times
+I_ep 424 ，train 282000 times
+I_ep 426 ，train 283000 times
+I_ep 427 ，train 284000 times
+I_ep 429 ，train 285000 times
+I_ep 430 ，train 286000 times
+I_ep 432 ，train 287000 times
+I_ep 433 ，train 288000 times
+I_ep 435 ，train 289000 times
+I_ep 436 ，train 290000 times
+I_ep 438 ，train 291000 times
+begin test
+3754
+2713
+(1.2513333333333334, 0.5216666666666666, 1.3973461113158865)
+I_ep 440 ，train 292000 times
+I_ep 441 ，train 293000 times
+I_ep 443 ，train 294000 times
+I_ep 444 ，train 295000 times
+I_ep 446 ，train 296000 times
+I_ep 447 ，train 297000 times
+I_ep 449 ，train 298000 times
+I_ep 450 ，train 299000 times
+I_ep 452 ，train 300000 times
+I_ep 453 ，train 301000 times
+I_ep 455 ，train 302000 times
+I_ep 456 ，train 303000 times
+I_ep 458 ，train 304000 times
+I_ep 459 ，train 305000 times
+begin test
+3469
+2676
+(1.1563333333333334, 0.5026666666666667, 1.4103139013452914)
+I_ep 461 ，train 306000 times
+I_ep 462 ，train 307000 times
+I_ep 464 ，train 308000 times
+I_ep 465 ，train 309000 times
+I_ep 467 ，train 310000 times
+I_ep 469 ，train 311000 times
+I_ep 470 ，train 312000 times
+I_ep 472 ，train 313000 times
+I_ep 473 ，train 314000 times
+I_ep 475 ，train 315000 times
+I_ep 476 ，train 316000 times
+I_ep 478 ，train 317000 times
+I_ep 479 ，train 318000 times
+begin test
+3780
+2709
+(1.26, 0.5263333333333333, 1.4119601328903655)
+I_ep 481 ，train 319000 times
+I_ep 482 ，train 320000 times
+I_ep 484 ，train 321000 times
+I_ep 485 ，train 322000 times
+I_ep 487 ，train 323000 times
+I_ep 489 ，train 324000 times
+I_ep 490 ，train 325000 times
+I_ep 492 ，train 326000 times
+I_ep 493 ，train 327000 times
+I_ep 495 ，train 328000 times
+I_ep 496 ，train 329000 times
+I_ep 498 ，train 330000 times
+I_ep 499 ，train 331000 times
+begin test
+3633
+2695
+(1.211, 0.5136666666666667, 1.4111317254174398)
+I_ep 501 ，train 332000 times
+I_ep 502 ，train 333000 times
+I_ep 504 ，train 334000 times
+I_ep 505 ，train 335000 times
+I_ep 507 ，train 336000 times
+I_ep 509 ，train 337000 times
+I_ep 510 ，train 338000 times
+I_ep 512 ，train 339000 times
+I_ep 513 ，train 340000 times
+I_ep 515 ，train 341000 times
+I_ep 516 ，train 342000 times
+I_ep 518 ，train 343000 times
+I_ep 519 ，train 344000 times
+begin test
+3717
+2673
+(1.239, 0.5203333333333333, 1.4085297418630751)
+I_ep 521 ，train 345000 times
+I_ep 522 ，train 346000 times
+I_ep 524 ，train 347000 times
+I_ep 525 ，train 348000 times
+I_ep 527 ，train 349000 times
+I_ep 529 ，train 350000 times
+I_ep 530 ，train 351000 times
+I_ep 532 ，train 352000 times
+I_ep 533 ，train 353000 times
+I_ep 535 ，train 354000 times
+I_ep 536 ，train 355000 times
+I_ep 538 ，train 356000 times
+I_ep 539 ，train 357000 times
+begin test
+3776
+2707
+(1.2586666666666666, 0.5273333333333333, 1.4200221647580347)
+I_ep 541 ，train 358000 times
+I_ep 542 ，train 359000 times
+I_ep 544 ，train 360000 times
+I_ep 545 ，train 361000 times
+I_ep 547 ，train 362000 times
+I_ep 548 ，train 363000 times
+I_ep 550 ，train 364000 times
+I_ep 552 ，train 365000 times
+I_ep 553 ，train 366000 times
+I_ep 555 ，train 367000 times
+I_ep 556 ，train 368000 times
+I_ep 558 ，train 369000 times
+I_ep 559 ，train 370000 times
+begin test
+3544
+2690
+(1.1813333333333333, 0.5066666666666667, 1.399628252788104)
+I_ep 561 ，train 371000 times
+I_ep 562 ，train 372000 times
+I_ep 564 ，train 373000 times
+I_ep 565 ，train 374000 times
+I_ep 567 ，train 375000 times
+I_ep 568 ，train 376000 times
+I_ep 570 ，train 377000 times
+I_ep 571 ，train 378000 times
+I_ep 573 ，train 379000 times
+I_ep 575 ，train 380000 times
+I_ep 576 ，train 381000 times
+I_ep 578 ，train 382000 times
+I_ep 579 ，train 383000 times
+begin test
+3733
+2669
+(1.2443333333333333, 0.518, 1.404645934807044)
+I_ep 581 ，train 384000 times
+I_ep 582 ，train 385000 times
+I_ep 584 ，train 386000 times
+I_ep 585 ，train 387000 times
+I_ep 587 ，train 388000 times
+I_ep 588 ，train 389000 times
+I_ep 590 ，train 390000 times
+I_ep 591 ，train 391000 times
+I_ep 593 ，train 392000 times
+I_ep 595 ，train 393000 times
+I_ep 596 ，train 394000 times
+I_ep 598 ，train 395000 times
+I_ep 599 ，train 396000 times
+begin test
+3682
+2666
+(1.2273333333333334, 0.5146666666666667, 1.397224306076519)
+I_ep 601 ，train 397000 times
+I_ep 602 ，train 398000 times
+I_ep 604 ，train 399000 times
+I_ep 605 ，train 400000 times
+I_ep 607 ，train 401000 times
+I_ep 608 ，train 402000 times
+I_ep 610 ，train 403000 times
+I_ep 611 ，train 404000 times
+I_ep 613 ，train 405000 times
+I_ep 614 ，train 406000 times
+I_ep 616 ，train 407000 times
+I_ep 618 ，train 408000 times
+I_ep 619 ，train 409000 times
+begin test
+3691
+2665
+(1.2303333333333333, 0.517, 1.4090056285178236)
+I_ep 621 ，train 410000 times
+I_ep 622 ，train 411000 times
+I_ep 624 ，train 412000 times
+I_ep 625 ，train 413000 times
+I_ep 627 ，train 414000 times
+I_ep 628 ，train 415000 times
+I_ep 630 ，train 416000 times
+I_ep 631 ，train 417000 times
+I_ep 633 ，train 418000 times
+I_ep 634 ，train 419000 times
+I_ep 636 ，train 420000 times
+I_ep 637 ，train 421000 times
+I_ep 639 ，train 422000 times
+begin test
+3812
+2666
+(1.2706666666666666, 0.5236666666666666, 1.3957239309827456)
+I_ep 640 ，train 423000 times
+I_ep 642 ，train 424000 times
+I_ep 643 ，train 425000 times
+I_ep 645 ，train 426000 times
+I_ep 647 ，train 427000 times
+I_ep 648 ，train 428000 times
+I_ep 650 ，train 429000 times
+I_ep 651 ，train 430000 times
+I_ep 653 ，train 431000 times
+I_ep 654 ，train 432000 times
+I_ep 656 ，train 433000 times
+I_ep 657 ，train 434000 times
+I_ep 659 ，train 435000 times
+begin test
+3558
+2675
+(1.186, 0.507, 1.3973831775700936)
+I_ep 660 ，train 436000 times
+I_ep 662 ，train 437000 times
+I_ep 663 ，train 438000 times
+I_ep 665 ，train 439000 times
+I_ep 666 ，train 440000 times
+I_ep 668 ，train 441000 times
+I_ep 669 ，train 442000 times
+I_ep 671 ，train 443000 times
+I_ep 672 ，train 444000 times
+I_ep 674 ，train 445000 times
+I_ep 676 ，train 446000 times
+I_ep 677 ，train 447000 times
+I_ep 679 ，train 448000 times
+begin test
+3665
+2633
+(1.2216666666666667, 0.5103333333333333, 1.3938473224458792)
+I_ep 680 ，train 449000 times
+I_ep 682 ，train 450000 times
+I_ep 683 ，train 451000 times
+I_ep 685 ，train 452000 times
+I_ep 686 ，train 453000 times
+I_ep 688 ，train 454000 times
+I_ep 689 ，train 455000 times
+I_ep 691 ，train 456000 times
+I_ep 692 ，train 457000 times
+I_ep 694 ，train 458000 times
+I_ep 695 ，train 459000 times
+I_ep 697 ，train 460000 times
+I_ep 698 ，train 461000 times
+begin test
+3545
+2646
+(1.1816666666666666, 0.506, 1.4153439153439153)
+I_ep 700 ，train 462000 times
+I_ep 701 ，train 463000 times
+I_ep 703 ，train 464000 times
+I_ep 704 ，train 465000 times
+I_ep 706 ，train 466000 times
+I_ep 707 ，train 467000 times
+I_ep 709 ，train 468000 times
+I_ep 710 ，train 469000 times
+I_ep 712 ，train 470000 times
+I_ep 714 ，train 471000 times
+I_ep 715 ，train 472000 times
+I_ep 717 ，train 473000 times
+I_ep 718 ，train 474000 times
+begin test
+3730
+2675
+(1.2433333333333334, 0.5196666666666667, 1.399626168224299)
+I_ep 720 ，train 475000 times
+I_ep 721 ，train 476000 times
+I_ep 723 ，train 477000 times
+I_ep 724 ，train 478000 times
+I_ep 726 ，train 479000 times
+I_ep 727 ，train 480000 times
+I_ep 729 ，train 481000 times
+I_ep 730 ，train 482000 times
+I_ep 732 ，train 483000 times
+I_ep 733 ，train 484000 times
+I_ep 735 ，train 485000 times
+I_ep 736 ，train 486000 times
+I_ep 738 ，train 487000 times
+I_ep 739 ，train 488000 times
+begin test
+3314
+2645
+(1.1046666666666667, 0.49233333333333335, 1.4022684310018905)
+I_ep 741 ，train 489000 times
+I_ep 742 ，train 490000 times
+I_ep 744 ，train 491000 times
+I_ep 746 ，train 492000 times
+I_ep 747 ，train 493000 times
+I_ep 749 ，train 494000 times
+I_ep 750 ，train 495000 times
+I_ep 752 ，train 496000 times
+I_ep 753 ，train 497000 times
+I_ep 755 ，train 498000 times
+I_ep 756 ，train 499000 times
+I_ep 758 ，train 500000 times
+I_ep 759 ，train 501000 times
+begin test
+3743
+2621
+(1.2476666666666667, 0.5143333333333333, 1.380389164441053)
+I_ep 761 ，train 502000 times
+I_ep 762 ，train 503000 times
+I_ep 764 ，train 504000 times
+I_ep 765 ，train 505000 times
+I_ep 767 ，train 506000 times
+I_ep 768 ，train 507000 times
+I_ep 770 ，train 508000 times
+I_ep 771 ，train 509000 times
+I_ep 773 ，train 510000 times
+I_ep 775 ，train 511000 times
+I_ep 776 ，train 512000 times
+I_ep 778 ，train 513000 times
+I_ep 779 ，train 514000 times
+begin test
+3837
+2591
+(1.279, 0.5163333333333333, 1.3639521420301042)
+I_ep 781 ，train 515000 times
+I_ep 782 ，train 516000 times
+I_ep 784 ，train 517000 times
+I_ep 785 ，train 518000 times
+I_ep 787 ，train 519000 times
+I_ep 788 ，train 520000 times
+I_ep 790 ，train 521000 times
+I_ep 791 ，train 522000 times
+I_ep 793 ，train 523000 times
+I_ep 795 ，train 524000 times
+I_ep 796 ，train 525000 times
+I_ep 798 ，train 526000 times
+I_ep 799 ，train 527000 times
+begin test
+3346
+2603
+(1.1153333333333333, 0.48966666666666664, 1.387245485977718)
+I_ep 801 ，train 528000 times
+I_ep 802 ，train 529000 times
+I_ep 804 ，train 530000 times
+I_ep 805 ，train 531000 times
+I_ep 807 ，train 532000 times
+I_ep 808 ，train 533000 times
+I_ep 810 ，train 534000 times
+I_ep 811 ，train 535000 times
+I_ep 813 ，train 536000 times
+I_ep 815 ，train 537000 times
+I_ep 816 ，train 538000 times
+I_ep 818 ，train 539000 times
+I_ep 819 ，train 540000 times
+begin test
+3752
+2596
+(1.2506666666666666, 0.5133333333333333, 1.3763482280431434)
+I_ep 821 ，train 541000 times
+I_ep 822 ，train 542000 times
+I_ep 824 ，train 543000 times
+I_ep 825 ，train 544000 times
+I_ep 827 ，train 545000 times
+I_ep 829 ，train 546000 times
+I_ep 830 ，train 547000 times
+I_ep 832 ，train 548000 times
+I_ep 833 ，train 549000 times
+I_ep 835 ，train 550000 times
+I_ep 836 ，train 551000 times
+I_ep 838 ，train 552000 times
+I_ep 839 ，train 553000 times
+begin test
+3683
+2636
+(1.2276666666666667, 0.5126666666666667, 1.392640364188164)
+I_ep 841 ，train 554000 times
+I_ep 842 ，train 555000 times
+I_ep 844 ，train 556000 times
+I_ep 845 ，train 557000 times
+I_ep 847 ，train 558000 times
+I_ep 849 ，train 559000 times
+I_ep 850 ，train 560000 times
+I_ep 852 ，train 561000 times
+I_ep 853 ，train 562000 times
+I_ep 855 ，train 563000 times
+I_ep 856 ，train 564000 times
+I_ep 858 ，train 565000 times
+I_ep 859 ，train 566000 times
+begin test
+3676
+2626
+(1.2253333333333334, 0.5126666666666667, 1.3971820258948973)
+I_ep 861 ，train 567000 times
+I_ep 862 ，train 568000 times
+I_ep 864 ，train 569000 times
+I_ep 866 ，train 570000 times
+I_ep 867 ，train 571000 times
+I_ep 869 ，train 572000 times
+I_ep 870 ，train 573000 times
+I_ep 872 ，train 574000 times
+I_ep 873 ，train 575000 times
+I_ep 875 ，train 576000 times
+I_ep 876 ，train 577000 times
+I_ep 878 ，train 578000 times
+I_ep 879 ，train 579000 times
+begin test
+3688
+2637
+(1.2293333333333334, 0.5123333333333333, 1.3875616230565035)
+I_ep 881 ，train 580000 times
+I_ep 883 ，train 581000 times
+I_ep 884 ，train 582000 times
+I_ep 886 ，train 583000 times
+I_ep 887 ，train 584000 times
+I_ep 889 ，train 585000 times
+I_ep 890 ，train 586000 times
+I_ep 892 ，train 587000 times
+I_ep 893 ，train 588000 times
+I_ep 895 ，train 589000 times
+I_ep 896 ，train 590000 times
+I_ep 898 ，train 591000 times
+begin test
+3354
+2594
+(1.118, 0.49, 1.3882035466461065)
+I_ep 900 ，train 592000 times
+I_ep 901 ，train 593000 times
+I_ep 903 ，train 594000 times
+I_ep 904 ，train 595000 times
+I_ep 906 ，train 596000 times
+I_ep 907 ，train 597000 times
+I_ep 909 ，train 598000 times
+I_ep 910 ，train 599000 times
+I_ep 912 ，train 600000 times
+I_ep 914 ，train 601000 times
+I_ep 915 ，train 602000 times
+I_ep 917 ，train 603000 times
+I_ep 918 ，train 604000 times
+begin test
+3623
+2616
+(1.2076666666666667, 0.5073333333333333, 1.382262996941896)
+I_ep 920 ，train 605000 times
+I_ep 921 ，train 606000 times
+I_ep 923 ，train 607000 times
+I_ep 924 ，train 608000 times
+I_ep 926 ，train 609000 times
+I_ep 927 ，train 610000 times
+I_ep 929 ，train 611000 times
+I_ep 931 ，train 612000 times
+I_ep 932 ，train 613000 times
+I_ep 934 ，train 614000 times
+I_ep 935 ，train 615000 times
+I_ep 937 ，train 616000 times
+I_ep 938 ，train 617000 times
+begin test
+3553
+2627
+(1.1843333333333332, 0.5066666666666667, 1.3966501712980586)
+I_ep 940 ，train 618000 times
+I_ep 941 ，train 619000 times

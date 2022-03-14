@@ -1,0 +1,59 @@
+nohup: ignoring input
+begin
+episodes 10, step is 142 
+-4272
+56
+(-1.424, 0.016, 1.0)
+episodes 20, step is 142 
+-4502
+9
+(-1.5006666666666666, 0.003, 1.0)
+episodes 30, step is 142 
+-4808
+8
+(-1.6026666666666667, 0.0023333333333333335, 1.0)
+episodes 40, step is 142 
+-4968
+66
+(-1.656, 0.01633333333333333, 1.0)
+episodes 50, step is 142 
+-5341
+15
+(-1.7803333333333333, 0.0026666666666666666, 1.0)
+episodes 60, step is 142 
+-5099
+11
+(-1.6996666666666667, 0.003, 1.0)
+episodes 70, step is 142 
+-5378
+21
+(-1.7926666666666666, 0.004, 1.0)
+episodes 80, step is 142 
+-4985
+33
+(-1.6616666666666666, 0.0023333333333333335, 1.0)
+episodes 90, step is 142 
+-5536
+10
+(-1.8453333333333333, 0.002, 1.0)
+episodes 100, step is 142 
+-5037
+33
+(-1.679, 0.005666666666666667, 1.0)
+episodes 110, step is 142 
+-5155
+10
+(-1.7183333333333333, 0.0026666666666666666, 1.0)
+episodes 120, step is 142 
+-4468
+0
+Traceback (most recent call last):
+  File "DQN-v1.py", line 238, in <module>
+    main()
+  File "DQN-v1.py", line 213, in main
+    test(net_path, i_ep)
+  File "DQN-v1.py", line 235, in test
+    print(env.evaluate())
+  File "/data1/dispatch_RLv1/RL-Dispatch/rl_env_DQN.py", line 396, in evaluate
+    average_hop = hop_num/len(self.dispatchs_arrived)
+ZeroDivisionError: division by zero

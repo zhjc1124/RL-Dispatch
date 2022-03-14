@@ -48,4 +48,7 @@ if __name__ == '__main__':
             print(env.total_profit())
             print(len(env.dispatchs_arrived))
             print(env.evaluate())
+            import pickle
+            with open('./analyze/distance_greedy.pkl', 'wb') as f:
+                pickle.dump(env, f)
             break

@@ -152,7 +152,13 @@ cython_debug/
 .idea/
 .vscode/
 exp/
+expmodified/
+expnoeta/
+expslow/
+exptest/
+expnoreward/
 param/
+DQN/
 
 dataset/dispatchs_eval.csv
 dataset/subways_eval.csv

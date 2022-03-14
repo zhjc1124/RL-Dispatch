@@ -48,6 +48,7 @@ class Dispatch:
         self.action_probs = []
         self.action_steps = []
         self.rewards = []
+        self.arrive_step = -1
 
     def profit(self):
         profit = (len(self.hops) - 1) * self.hopcost
@@ -79,34 +80,33 @@ class Dispatch:
             self.states = torch.cat((self.states, state))
 
     # def record_rewards(self):
-    #     reward = -1                                        # 移动惩罚
-    #     reward += self.left_step * 0.1                     # 剩余时间惩罚
-
+    #     reward = 0
     #     if self.left_step > -1 and self.hops[-1] == self.receiver_station:
-    #         reward += 100                                  # 到达奖励
-    #         return reward
-
-    #     current_station = self.hops[-1]
-    #     receiver_station = self.receiver_station
-    #     distance = station_distances[current_station, receiver_station]
-    #     reward += -distance * 0.1                           # 距离惩罚
+    #         reward += 5                                  # 到达奖励
     #     return reward 
     
     def record_rewards(self):
-        reward = 0                                         # 移动惩罚
-        reward += self.left_step * 0.1                       # 剩余时间惩罚
+        reward = -(len(self.hops) - 1) * 10                  # 移动惩罚
+        if self.left_step < 0:
+            reward += self.left_step * 10                       # 剩余时间惩罚
 
-        if self.left_step > -1 and self.hops[-1] == self.receiver_station:
-            reward += 100 - (len(self.hops) - 1)            # 到达奖励
+        if self.hops[-1] == self.receiver_station:
+            reward += 100                                    # 到达奖励
 
+        last_station = None
         if self.status == 'selected':
             current_station = self.hops[-2]
+            if len(self.hops) >= 3:
+                last_station = self.hops[-3]
         else:
             current_station = self.hops[-1]
+            last_station = self.hops[-1]
         receiver_station = self.receiver_station
-        if current_station != receiver_station:
-            distance = station_distances[current_station, receiver_station]
-            reward += -distance * 0.1                              # 距离惩罚
+        if last_station and current_station != receiver_station:
+            current_distance = station_distances[current_station, receiver_station]
+            last_distance = station_distances[last_station, receiver_station]
+            if current_distance > last_distance:
+                reward += (last_distance - current_distance) * 10  # 距离惩罚
         self.rewards.append(reward)
         return reward 
 
@@ -142,14 +142,16 @@ class Myenv:
         assert(len(actions) == len(self.dispatchs_waiting))
         if action_probs is None:
             action_probs = [1] * len(actions)
+
+        waiting = []
         for i in range(len(actions)):
             if actions[i] == self.dispatchs_waiting[i].hops[-1]:
-                pass
+                waiting.append(self.dispatchs_waiting[i])
             else:
                 self.dispatchs_waiting[i].step(actions[i], action_probs[i], self.step_nums)
                 self.dispatchs_waiting[i].status = 'selected'
                 self.dispatchs_selected.append(self.dispatchs_waiting[i])
-        self.dispatchs_waiting = []
+        self.dispatchs_waiting = waiting
 
         selected = []
         for dispatch in self.dispatchs_selected:
@@ -163,7 +165,6 @@ class Myenv:
                 self.state['packages'][0][dispatch.hops[-2]] -= 1
                 self.state['packages'][1][dispatch.hops[-2], dispatch.hops[-1]] += 1
             else:
-                
                 selected.append(dispatch)
         self.dispatchs_selected = selected
 
@@ -182,7 +183,7 @@ class Myenv:
             dispatch.update()
 
         delivering = []
-        waiting = []
+        waiting = self.dispatchs_waiting
         for dispatch in self.dispatchs_delivering:
             dispatch.update()
             if dispatch.arrive_step+1 == self.step_nums:
@@ -190,6 +191,7 @@ class Myenv:
                 dispatch.record_rewards()
                 if dispatch.hops[-1] == dispatch.receiver_station:
                     dispatch.status = 'arrived'
+                    self.arrive_step = self.step_nums
                     self.dispatchs_arrived.append(dispatch)
                 else:
                     self.state['packages'][0][dispatch.hops[-1]] += 1
@@ -200,6 +202,7 @@ class Myenv:
                 delivering.append(dispatch)
         
         self.dispatchs_delivering = delivering
+        self.dispatchs_waiting = waiting
 
         arrived = self.subways_commuting[self.subways_commuting['swipe_out_step'] <= self.step_nums]
         self.subways_commuting = self.subways_commuting.drop(arrived.index)
@@ -210,9 +213,10 @@ class Myenv:
             return self.dispatchs_waiting, self.step_nums == 143, self.time
 
         dispatchs_handling = self.dispatchs_eval[self.dispatchs_eval['send_step']+1 <= self.step_nums]
+        # print('in:', len(dispatchs_handling))
         self.dispatchs_eval = self.dispatchs_eval.drop(dispatchs_handling.index)
 
-
+        waiting = self.dispatchs_waiting
         for index, row in dispatchs_handling.iterrows():
             dispatch = Dispatch(row)
             dispatch.record_states(self.step_nums)
@@ -230,6 +234,7 @@ class Myenv:
         info[1, 0] = self.state['passengers'][0]
         info[1, 1:] = self.state['passengers'][1]
         self.infos.append(info)
+        # print('all:', len(self.dispatchs_waiting+self.dispatchs_delivering+self.dispatchs_selected+self.dispatchs_arrived))
         return self.dispatchs_waiting, self.step_nums == 143, self.time
     
     def reset(self):
@@ -237,7 +242,7 @@ class Myenv:
         reset the environment.
         return states and time
         '''
-        seed = 1
+        seed = 10
         torch.manual_seed(seed)
         np.random.seed(seed)
         # random.seed(seed)
@@ -399,4 +404,6 @@ if __name__ == '__main__':
             print(env.total_profit())
             print(len(env.dispatchs_arrived))
             print(env.evaluate())
-            break
+            # import pickle
+            # with open('./analyze/direct.pkl', 'wb') as f:
+            #     pickle.dump(env, f)

@@ -42,24 +42,101 @@ DELTA = torch.load('./dataset/delta.pth')
 class Actor(nn.Module):
     def __init__(self):
         super(Actor, self).__init__()
-        self.fc1 = nn.Linear(num_state, 1000)
-        self.action_head = nn.Linear(1000, num_action)
+
+        self.conv1 = nn.Conv2d(2, 5, 5)
+        self.conv2 = nn.Conv2d(5, 10, 5)
+        self.conv3 = nn.Conv2d(10, 2, 5)
+
+        self.conv1d1 = nn.Conv1d(1, 10, 3, 2)
+        self.conv1d2 = nn.Conv1d(10, 20, 3, 2)
+
+        self.fc1 = nn.Linear(740, 300)
+        self.fc2 = nn.Linear(300, num_action)
 
     def forward(self, x):
+        in_size = x.size(0)
+        global_state = x[:, :GLOBAL_STATE_SIZE].view(in_size, 2, UPPERBOUND+1, UPPERBOUND)
+
+        global_state = self.conv1(global_state)
+        global_state = F.relu(global_state)
+        global_state = F.max_pool2d(global_state, 2, 2)
+
+        global_state = self.conv2(global_state)
+        global_state = F.relu(global_state)
+        global_state = F.max_pool2d(global_state, 2, 2)
+
+        global_state = self.conv3(global_state)
+        global_state = F.relu(global_state)
+        global_state = F.max_pool2d(global_state, 2, 2)
+
+        global_state = global_state.view(in_size, -1)
+
+        private_state = x[:, GLOBAL_STATE_SIZE:]
+
+        x = torch.cat((global_state, private_state), dim=1)
+
+        x = x.view(in_size, 1, -1)
+        x = self.conv1d1(x)
+        x = F.relu(x)
+        x = F.max_pool1d(x, 2, 2)
+
+        x = self.conv1d2(x)
+        x = F.relu(x)
+        x = F.max_pool1d(x, 2, 2)
+
+        x = x.view(in_size, -1)
         x = F.relu(self.fc1(x))
-        action_prob = F.softmax(self.action_head(x), dim=1)
+        action_prob = F.softmax(self.fc2(x), dim=1)
         return action_prob
 
 
 class Critic(nn.Module):
     def __init__(self):
         super(Critic, self).__init__()
-        self.fc1 = nn.Linear(num_state, 1000)
-        self.state_value = nn.Linear(1000, 1)
+        self.conv1 = nn.Conv2d(2, 5, 5)
+        self.conv2 = nn.Conv2d(5, 10, 5)
+        self.conv3 = nn.Conv2d(10, 2, 5)
+
+        self.conv1d1 = nn.Conv1d(1, 10, 3, 2)
+        self.conv1d2 = nn.Conv1d(10, 20, 3, 2)
+
+        self.fc1 = nn.Linear(740, 300)
+        self.fc2 = nn.Linear(300, 1)
 
     def forward(self, x):
+        in_size = x.size(0)
+        global_state = x[:, :GLOBAL_STATE_SIZE].view(in_size, 2, UPPERBOUND+1, UPPERBOUND)
+
+        global_state = self.conv1(global_state)
+        global_state = F.relu(global_state)
+        global_state = F.max_pool2d(global_state, 2, 2)
+
+        global_state = self.conv2(global_state)
+        global_state = F.relu(global_state)
+        global_state = F.max_pool2d(global_state, 2, 2)
+
+        global_state = self.conv3(global_state)
+        global_state = F.relu(global_state)
+        global_state = F.max_pool2d(global_state, 2, 2)
+
+        global_state = global_state.view(in_size, -1)
+
+        private_state = x[:, GLOBAL_STATE_SIZE:]
+
+        x = torch.cat((global_state, private_state), dim=1)
+
+        x = x.view(in_size, 1, -1)
+        x = self.conv1d1(x)
+        x = F.relu(x)
+        x = F.max_pool1d(x, 2, 2)
+
+        x = self.conv1d2(x)
+        x = F.relu(x)
+        x = F.max_pool1d(x, 2, 2)
+
+        x = x.view(in_size, -1)
         x = F.relu(self.fc1(x))
-        value = self.state_value(x)
+        value = self.fc2(x)
         return value
 
 
@@ -78,10 +155,10 @@ class PPO():
         self.counter = 0
         self.training_step = 0
         self.mode = mode
-        self.writer = SummaryWriter('./exp')
+        self.writer = SummaryWriter('./exptest')
 
-        self.actor_optimizer = optim.Adam(self.actor_net.parameters(), 1e-4)
-        self.critic_net_optimizer = optim.Adam(self.critic_net.parameters(), 1e-3)
+        self.actor_optimizer = optim.Adam(self.actor_net.parameters(), 1e-3)
+        self.critic_net_optimizer = optim.Adam(self.critic_net.parameters(), 1e-2)
         if not os.path.exists('./param'):
             os.makedirs('./param/net_param')
             os.makedirs('./param/img')
@@ -101,10 +178,6 @@ class PPO():
     #     else:
     #         action = action_prob.argmax()
     #     return action.item(), action_prob[:, action.item()].item()
-        # if random.randint(0, 1):
-        #     return action.item(), action_prob[:, action.item()].item()
-        # else:
-        #     return d.item(), action_prob[:, d.item()].item()
 
     def select_action(self, state):
         with torch.no_grad():
@@ -202,7 +275,7 @@ class PPO():
                 surr2 = torch.clamp(ratio, 1 - self.clip_param, 1 + self.clip_param) * advantage
 
                 # update actor network
-                action_loss = -torch.min(surr1, surr2) - entropy  # MAX->MIN desent
+                action_loss = -torch.min(surr1, surr2) - entropy * 0.1  # MAX->MIN desent
                 action_loss = action_loss.mean()
                 self.writer.add_scalar('loss/action_loss', action_loss, global_step=self.training_step)
                 self.actor_optimizer.zero_grad()
@@ -225,10 +298,10 @@ class PPO():
 
 def main():
     torch.cuda.set_device(1)
-    print('begin')
+    print('begin train')
     agent = PPO(mode='train')
-    # agent.load_param('actor_net1646920707.pkl', 'critic_net1646920707.pkl')
-    for i_epoch in range(100):
+    agent.load_param(('param/net_param/actor_net1648060524.pkl', 'param/net_param/critic_net1648060524.pkl'))
+    for i_epoch in range(1000):
         env = Myenv()
         dispatchs, done, _ = env.reset()
         for t in count():  
@@ -251,13 +324,15 @@ def main():
                     pass
                 if len(agent.buffer) >= agent.batch_size:
                     agent.update(i_epoch)
-                    if (i_epoch+1) % 10 == 0:
+                    if (i_epoch+1) % 100 == 0:
                         params_file = agent.save_param()
                         test(params_file, i_epoch)
                     agent.writer.add_scalar('liveTime/livestep', t, global_step=i_epoch)
                 break
                 
 def test(params_file, i_epoch):
+    torch.cuda.set_device(1)
+    print('begin test')
     agent = PPO(mode='test')
     agent.load_param(params_file)
     env = Myenv()
@@ -274,12 +349,24 @@ def test(params_file, i_epoch):
         dispatchs, done, _ = env.step(actions, action_probs)
         if done:
             profit = env.total_profit()
-            agent.writer.add_scalar('loss/profit', t, global_step=i_epoch)
+            agent.writer.add_scalar('loss/profit', profit, global_step=i_epoch)
             print(profit)
             print(len(env.dispatchs_arrived))
             print(env.evaluate())
-            break
+            # import pickle
+            # with open('./analyze/PPOv2.pkl', 'wb') as f:
+            #     pickle.dump(env, f)
+            # break
 
 if __name__ == '__main__':
-    main()
-    print("end")
+    # main()
+    # print("end")
+    # test(('param/net_param/actor_net1648050596.pkl', 'param/net_param/critic_net1648050596.pkl'), 0)
+    import os 
+    files = os.listdir('param/net_param/')
+    for f in files:
+        if f.startswith('critic_net'):
+            num = f[10:20]
+            param1 = f'actor_net{num}.pkl'
+            print(num)
+            test((f'param/net_param/{param1}', f'param/net_param/{f}'), 0)
