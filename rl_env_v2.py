@@ -93,20 +93,27 @@ class Dispatch:
     #     return reward 
     
     def record_rewards(self):
-        reward = 0                                         # 移动惩罚
-        reward += self.left_step * 0.1                       # 剩余时间惩罚
+        reward = -(len(self.hops) - 1) * 10                  # 移动惩罚
+        if self.left_step < 0:
+            reward += self.left_step * 10                       # 剩余时间惩罚
 
-        if self.left_step > -1 and self.hops[-1] == self.receiver_station:
-            reward += 100 - (len(self.hops) - 1)            # 到达奖励
+        if self.hops[-1] == self.receiver_station:
+            reward += 100                                    # 到达奖励
 
+        last_station = None
         if self.status == 'selected':
             current_station = self.hops[-2]
+            if len(self.hops) >= 3:
+                last_station = self.hops[-3]
         else:
             current_station = self.hops[-1]
+            last_station = self.hops[-1]
         receiver_station = self.receiver_station
         if current_station != receiver_station:
-            distance = station_distances[current_station, receiver_station]
-            reward += -distance * 0.1                              # 距离惩罚
+            current_distance = station_distances[current_station, receiver_station]
+            last_distance = station_distances[last_station, receiver_station]
+            if current_distance > last_distance:
+                reward += (last_distance - current_distance) * 10  # 距离惩罚
         self.rewards.append(reward)
         return reward 
 
