@@ -102,7 +102,11 @@ class Dispatch:
             current_station = self.hops[-1]
             last_station = self.hops[-1]
         receiver_station = self.receiver_station
+<<<<<<< HEAD
         if last_station and current_station != receiver_station:
+=======
+        if current_station != receiver_station:
+>>>>>>> 1cfb87d8fab459b13c0b834007638151045a3a33
             current_distance = station_distances[current_station, receiver_station]
             last_distance = station_distances[last_station, receiver_station]
             if current_distance > last_distance:
